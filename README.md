@@ -1,2 +1,0 @@
-# brew
-CherryMountain Brewery
