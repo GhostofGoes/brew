@@ -1,5 +1,8 @@
 # CherryMountain Brewery
 
+[![CI](https://github.com/GhostofGoes/brew/actions/workflows/ci.yml/badge.svg)](https://github.com/GhostofGoes/brew/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
 An open-source OT cyber range for [phenix](https://github.com/sandialabs/sceptre-phenix):
 a notional Colorado microbrewery with its process, PLCs, SCADA, power and
 building systems, a SOC, and a vendor's way in.
@@ -84,6 +87,11 @@ the addresses and every allowed flow.
 <summary><strong>Table of contents</strong></summary>
 
 - [Status](#status)
+- [This repository](#this-repository)
+  - [Branches](#branches)
+  - [Companion repositories](#companion-repositories)
+  - [History](#history)
+- [Getting started](#getting-started)
 - [Overview](#overview)
 - [Brewing](#brewing)
 - [Architecture](#architecture)
@@ -112,6 +120,8 @@ the addresses and every allowed flow.
 - [Lint](#lint)
 - [Network (Phase 1)](#network-phase-1)
 - [Applying the full design](#applying-the-full-design)
+- [Contributing](#contributing)
+- [License](#license)
 
 </details>
 
@@ -119,6 +129,86 @@ the addresses and every allowed flow.
 
 Everything is built and tested offline, and nothing has run on a phenix host
 yet: [Status in DESIGN.md](docs/DESIGN.md#status) has the detail.
+
+## This repository
+
+This repository is the whole CherryMountain Brewery project. Its root is the
+topology directory that `phenix workflow apply` reads. A clone of it at
+`/phenix/topologies/cherrymountain-brewery` on a phenix host is all that the
+range needs from here. The repository holds these parts:
+
+- The range as phenix reads it: the workflows (`phenix*.yml`), the topologies
+  and scenarios (`phenix-configs/`), the files that go onto the VMs
+  (`phenix-injects/`), and the image configurations (`phenix-images/`).
+- The plant model (`plant/plant.yaml`), and the generators that write most
+  other files from it (`tools/plantgen/`, `sync.py`, `fuxa/build_project.py`).
+- The simulation of the process, the power, and the building (`sim/`), the PLC
+  programs (`plc/`), the SCADA and HMI projects (`fuxa/`), and the 3D view of
+  the white cell (`viz/`).
+- The checks: the static check of the network (`tools/netcheck/`), the test
+  suites, and the hooks that run all of them (`prek.toml`).
+- The documents: this file, the [user guide](USER_GUIDE.md), the
+  [design](docs/DESIGN.md), the [planned work](docs/FUTURE_WORK.md), and the
+  spikes that tested each risky part first (`spikes/`).
+
+[What exists](#what-exists) lists every directory.
+
+### Branches
+
+| Branch | Contents |
+|---|---|
+| `main` | The single-site range, in its ci, lite, and full variants |
+| [`feat-multisite`](https://github.com/GhostofGoes/brew/tree/feat-multisite) | `main` and the multi-site variant: four breweries and a head office, which a VPN over a mock internet joins. It is in progress, and `docs/multisite/PLANS.md` on that branch has the plan |
+| [`feat-luanti-world`](https://github.com/GhostofGoes/brew/tree/feat-luanti-world) | `feat-multisite` and a spike: a [Luanti](https://www.luanti.org/) world that follows the frames of cm-viz (`spikes/luanti-world/`) |
+
+### Companion repositories
+
+The range runs on phenix, and it needs changes to phenix that are not upstream
+yet. Those changes are in forks:
+
+| Repository | What the range takes from it |
+|---|---|
+| [sceptre-phenix](https://github.com/GhostofGoes/sceptre-phenix) | phenix itself, with the changes that the range needs |
+| [sceptre-phenix-apps](https://github.com/GhostofGoes/sceptre-phenix-apps) | The phenix apps that the range runs on. `prek.toml` pins a commit of it for the hooks that test the `cherrymountain` app |
+| [sceptre-phenix-images](https://github.com/GhostofGoes/sceptre-phenix-images) | The recipes that build the disk images |
+
+The [user guide](USER_GUIDE.md) names the branch of each one.
+
+### History
+
+The project began as the `cherrymountain-brewery` directory of a fork of
+[sceptre-phenix-topologies](https://github.com/GhostofGoes/sceptre-phenix-topologies).
+It moved to this repository in November 2026, with its history. The move put
+that directory at the root, so the commits here have other hashes than the
+commits of the fork. The records of the spikes keep their links to the CI runs
+of the fork and the commit hashes of the fork, because that is where those runs
+happened.
+
+## Getting started
+
+To run the range, follow the [user guide](USER_GUIDE.md). It goes from an empty
+host to a range that runs. The clone of this repository goes to this path, and
+Git LFS fetches the PLC program archives:
+
+```shell
+git lfs install
+git clone https://github.com/GhostofGoes/brew.git /phenix/topologies/cherrymountain-brewery
+```
+
+To work on the range, you do not need a phenix host. Every check and every test
+suite is a [prek](https://prek.j178.dev/) hook, and CI runs the same hooks in
+the dev container (`.devcontainer/`):
+
+```shell
+make install-dev      # install prek and register the git hooks
+make lint             # run every hook on every file
+make container-lint   # the same in the dev container, as CI runs it
+```
+
+[Regenerate and test](#regenerate-and-test) has the commands that write the
+generated files again. [Lint](#lint) describes the hooks.
+[CONTRIBUTING](.github/CONTRIBUTING.md) has the rules for branches, commits,
+and pull requests.
 
 ## Overview
 
@@ -1071,7 +1161,7 @@ started without the app.
 
 ## Regenerate and test
 
-Run these from this directory after changing `plant/plant.yaml`:
+Run these from the repository root after changing `plant/plant.yaml`:
 
 ```shell
 (cd tools/plantgen && python -m plantgen)          # rewrite plant/generated/*
@@ -1120,7 +1210,7 @@ to pin down how the v4 runtime clamps and segments the holding registers.
 
 ## Lint
 
-`prek run --all-files` (also run by CI) checks this directory with:
+`prek run --all-files` (also run by CI) checks this repository with:
 
 - **phenix schemas:** every Topology, Scenario, Workflow, and Image config is
   validated with the sceptre-phenix JSON Schemas, fetched from a commit-pinned
@@ -1248,3 +1338,20 @@ tunneler's port).
 
 Each variant has its own bridge, and only one variant can run at a time: they
 use the same VLAN IDs.
+
+## Contributing
+
+[CONTRIBUTING](.github/CONTRIBUTING.md) describes how to propose a change and
+what a change must pass. [AGENTS.md](AGENTS.md) has the instructions for AI
+coding agents.
+
+## License
+
+This repository is licensed under the
+[GNU Affero General Public License v3.0](LICENSE). Some repository files (the
+hook, lint, and editor configuration, and the templates under `.github/`) began
+as copies of files of
+[sceptre-phenix-topologies](https://github.com/sandialabs/sceptre-phenix-topologies),
+which is licensed under the GNU General Public License v3.0. The software that
+the range installs on its VMs keeps its own licenses, and
+[DESIGN.md](docs/DESIGN.md) lists them.
