@@ -185,7 +185,7 @@ sources, checked 2026-11-09.
   licenses", and TheHive 5/6 is proprietary. **§20** already excludes Security
   Onion (ELv2), EMQX (BSL), and Labshock (non-commercial); TheHive Community is
   non-commercial *and* closed, so it fails on both counts.
-- The repository's GPL-3.0 is not the problem: `phenix image build` would
+- The repository's own copyleft license is not the problem: `phenix image build` would
   download TheHive, and the repository would ship nothing of it. But:
   - **built images could not be shared**: §1.3(b) forbids distributing it, and
     the range shares prebuilt images (for example `vyos` through oras);

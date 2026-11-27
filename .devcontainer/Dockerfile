@@ -5,7 +5,7 @@ FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce
 
 LABEL org.opencontainers.image.source="https://github.com/GhostofGoes/brew" \
       org.opencontainers.image.description="Linux tools for the prek hooks of the CherryMountain Brewery range" \
-      org.opencontainers.image.licenses="GPL-3.0-only"
+      org.opencontainers.image.licenses="AGPL-3.0-only"
 
 # PREK_VERSION must be at least minimum_prek_version in prek.toml.
 ARG PREK_VERSION=0.5.10

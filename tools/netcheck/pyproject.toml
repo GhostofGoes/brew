@@ -7,7 +7,7 @@ name = "cherrymountain-netcheck"
 version = "0.1.0"
 description = "Statically check the CherryMountain Brewery topology, scenario, and workflow against the DESIGN.md IP plan and conduit matrix"
 requires-python = ">=3.12"
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 dependencies = [
     "pydantic>=2.7",
     "pyyaml>=6.0",

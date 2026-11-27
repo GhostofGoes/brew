@@ -7,7 +7,7 @@ name = "cherrymountain-plantgen"
 version = "0.1.0"
 description = "Generate CherryMountain Brewery phenix artifacts from plant/plant.yaml"
 requires-python = ">=3.12"
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 dependencies = [
     "pydantic>=2.7",
     "pyyaml>=6.0",
