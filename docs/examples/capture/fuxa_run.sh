@@ -10,7 +10,7 @@
 #   FUXA_SERVER  FUXA 1.3.6's server directory, with its node_modules (required)
 #   FUXA_PKG     a directory with node_modules holding node-bacnet and node-snap7
 #                (required; `npm install node-bacnet@0.2.4 node-snap7@1.0.9` in it)
-#   CM_ROOT      the cherrymountain-brewery directory (default: this file's place)
+#   CM_ROOT      the repository root (default: this file's place)
 #   WORK         scratch directory (default /tmp/cm-examples)
 #   CM_BACNET_IFACE  a non-loopback IPv4 address of this host (default: found)
 #   FUXA_PORT    default 11881 for scada, 11882 for bas

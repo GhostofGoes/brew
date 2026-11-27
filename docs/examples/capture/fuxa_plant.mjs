@@ -19,7 +19,7 @@
 //   node fuxa_plant.mjs --root DIR --fuxa DIR --pkg DIR --project FILE
 //                       --snapshot FILE [--live-batch] [--control 18181]
 //
-// root: the cherrymountain-brewery directory. fuxa: FUXA's server directory
+// root: the repository root. fuxa: FUXA's server directory
 // (with node_modules: node-opcua, modbus-serial). pkg: a directory with
 // node_modules holding node-bacnet and node-snap7. Control port, on 127.0.0.1:
 //   GET /snapshot?file=PATH   serve another snapshot

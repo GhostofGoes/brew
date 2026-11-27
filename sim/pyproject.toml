@@ -7,7 +7,7 @@ name = "cherrymountain-sim"
 version = "0.1.0"
 description = "CherryMountain Brewery HELICS federates, models, and sim-ctl event API"
 requires-python = ">=3.12"
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 dependencies = ["pydantic>=2.7", "simpy>=4.1"]
 
 [project.optional-dependencies]

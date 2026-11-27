@@ -36,7 +36,7 @@ ops-client .30  ops-bbmd .5  --[ router .1 | .1 ]--  bas-bbmd .5  bas-dev .13
 - `responder.py --broadcast-iam [--announce N]` makes the device answer a Who-Is
   (or announce itself) with a broadcast I-Am.
 - Workflow jobs: `bbmd-netns` and `bbmd-vyos` in
-  `.github/workflows/cherrymountain-spikes.yml`. They need Docker on the
+  `.github/workflows/spikes.yml`. They need Docker on the
   runner for FUXA (GitHub-hosted runners have it).
 
 ## Steps (what `scenario.py` does)

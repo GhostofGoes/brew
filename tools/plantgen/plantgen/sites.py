@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from plantgen.model import PlantError, PlantFile
 from plantgen.model import load_file as load_plant
 
-#: cherrymountain-brewery/plant/sites.yaml and cherrymountain-brewery/wan/wan.yaml
+#: plant/sites.yaml and wan/wan.yaml
 _ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 DEFAULT_PATH: Final[Path] = _ROOT / "plant" / "sites.yaml"
 WAN_PATH: Final[Path] = _ROOT / "wan" / "wan.yaml"

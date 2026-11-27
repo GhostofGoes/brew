@@ -20,7 +20,7 @@ The tool needs Python 3.12 or later, `pydantic`, and `pyyaml`.
 
 ## Outputs
 
-Paths are relative to `cherrymountain-brewery/`.
+Paths are relative to the repository root.
 
 | File | What it holds |
 |---|---|

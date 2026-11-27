@@ -5,7 +5,7 @@ each scene must get a WebGL context, render frames, and bind the data. Needs
 Node and the ``playwright`` package with its Chromium (``require('playwright')``
 must work). Run it with::
 
-    cd cherrymountain-brewery/viz && python -m pytest -m browser
+    cd viz && python -m pytest -m browser
 """
 
 from __future__ import annotations

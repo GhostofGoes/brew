@@ -40,7 +40,7 @@ and does not need `/dev/kvm`. `inject-miniexe` works only while minimega runs.
 The result is `<dir>/<name>.qc2`. Replace `<name>` with the image name:
 
 ```shell
-phenix config create cherrymountain-brewery/phenix-images/<name>.yml
+phenix config create phenix-images/<name>.yml
 phenix image build -o <dir> -c -x <name>
 phenix image inject-miniexe /usr/local/bin/miniccc <dir>/<name>.qc2
 ```
@@ -153,7 +153,7 @@ runtime (a PLC's own), and the web interface of InfluxDB.
     `CM_VIZ_TREE`. Those two values are the git tree ids of the two packages
     (`sim/cherrymountain_sim`, `viz/cherrymountain_viz`) at that commit. After
     a change to either package, a second commit moves all three values
-    (`git rev-parse <commit>:cherrymountain-brewery/sim/cherrymountain_sim`).
+    (`git rev-parse <commit>:sim/cherrymountain_sim`).
     A test fails until that commit exists, because federates of an older
     `sim/` stop on the names of a newer `helics.json`.
   - `opensearch=3.9.0` (apt, held, with the repository key
@@ -344,7 +344,8 @@ The PLCs, the ot-sim devices, the simulation nodes, and the routers have no agen
 - Base: The base is the shared noble `minbase` image plus `wireguard-tools`,
   `gnupg`, `python3`, `python3-pip` and pydantic 2.11.7 (pip), and `rsyslog`.
   The disk is 8 GB. The configuration is the focal
-  `renewables/wind/plant/phenix-images/wireguard.yml`, rebased on noble.
+  `renewables/wind/plant/phenix-images/wireguard.yml` of
+  sceptre-phenix-topologies, rebased on noble.
 - Contents:
   - The image has `logrotate`, for the log of WireGuard peer events. The
     topology injects `/etc/logrotate.d/cm-wireguard`.

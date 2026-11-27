@@ -153,7 +153,7 @@ EWS is what the Suricata and Zeek BACnet-write detections watch for
 ZeroMQ sockets on loopback (the `cm-bacnet-tests` hook):
 
 ```shell
-python -m pytest cherrymountain-brewery/tests/bacnet
+python -m pytest tests/bacnet
 ```
 
 The app's `tests/test_bacnet.py` runs the real `ot-sim` app, then the

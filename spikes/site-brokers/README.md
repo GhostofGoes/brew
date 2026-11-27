@@ -70,7 +70,7 @@ There, each federate runs as a small supervisor that starts its process again
 ```shell
 python3.12 -m venv ~/brokers-venv
 ~/brokers-venv/bin/pip install 'helics==3.6.1' 'pydantic>=2.7' 'simpy>=4.1' 'opendssdirect.py~=0.8.4'
-cd cherrymountain-brewery/spikes/site-brokers
+cd spikes/site-brokers
 sudo -E ~/brokers-venv/bin/python site_brokers.py
 ```
 
@@ -241,9 +241,9 @@ The smallest set of changes:
 |---|---|---|---|
 | 1 | sceptre-phenix-apps | `cherrymountain/render.py` (`render_sim`), and a new unit in `templates/systemd/` | Render a broker unit on every host of type `sim-ctl`. The command is `helics_broker --name <host> -f<federate_count> --ipv4 --local_interface <MGMT address>`, with `Restart=always`. The count is in the site's `helics.json` |
 | 2 | sceptre-phenix-apps | `cherrymountain/render.py` lines 696, 748, 1483, 1911, and 1916. `sources.py` line 109. `app.py` lines 447 to 452 | Replace the one `sim-ctl` and the one variant directory with those of the host's site. The topology files give each host a `site` label. The MGMT policy gets its hub and its peers for each site |
-| 3 | sceptre-phenix-topologies | plantgen (`helics_app` in `render.py`) and `sync.py` | Write no `helics` app block into the fleet scenario. `sync.py` lines 306 to 317 accept a scenario without it |
-| 4 | sceptre-phenix-topologies | plantgen (`otsim_app` in `render.py`, line 635) | Give each device of the merged `ot-sim` block its own `helics.broker.hostname`, which is `<site>-sim-ctl\|mgmt`. Set no `base-fed-count` |
-| 5 | sceptre-phenix-topologies | The user guide, or a script | A restart of a site: stop its federate units, restart its broker unit, and start the federate units and the field devices |
+| 3 | brew | plantgen (`helics_app` in `render.py`) and `sync.py` | Write no `helics` app block into the fleet scenario. `sync.py` lines 306 to 317 accept a scenario without it |
+| 4 | brew | plantgen (`otsim_app` in `render.py`, line 635) | Give each device of the merged `ot-sim` block its own `helics.broker.hostname`, which is `<site>-sim-ctl\|mgmt`. Set no `base-fed-count` |
+| 5 | brew | The user guide, or a script | A restart of a site: stop its federate units, restart its broker unit, and start the federate units and the field devices |
 
 - The `helics` app and the `ot-sim` app need no change. Without the `helics`
   app, the `ot-sim` app adds a wait script for each broker address

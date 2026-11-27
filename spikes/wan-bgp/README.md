@@ -110,7 +110,7 @@ apt-get install iproute2 frr wireguard-tools wireguard-go nftables traceroute ip
 ## Steps
 
 ```shell
-cd cherrymountain-brewery/spikes/wan-bgp
+cd spikes/wan-bgp
 sudo -E python netns_lab.py                    # build, check, tear down (about 6 minutes)
 sudo -E python netns_lab.py --keep             # leave the lab up; `--down` removes it
 sudo -E python netns_lab.py --pin destination  # the first design, which drifts (finding 2)
@@ -373,7 +373,7 @@ decisions D2 and D3).
 ### What it boots
 
 `vyos_ci.py` runs as the `wan-bgp-vyos` job of the
-[CherryMountain spikes workflow](../../../.github/workflows/cherrymountain-spikes.yml),
+[Spikes workflow](../../.github/workflows/spikes.yml),
 on a GitHub runner with KVM and 4 vCPUs. On that runner, phenix and minimega
 boot four VyOS routers (2 vCPUs and 2 GB each) and two hosts.
 
@@ -441,7 +441,7 @@ is the backup tunnel, over Tumbleweed. A host sits behind each edge.
 ### Steps
 
 Run the workflow by hand with `spikes` set to `wan-bgp-vyos`. A push to
-`feat-secret-topo` that touches `spikes/` also runs the workflow, with the
+`main` that touches `spikes/` also runs the workflow, with the
 other spikes. Each job uploads `evidence-wan-bgp-vyos-<tunnel>`.
 
 What a run checks, in order: phenix rendered each list after its own

@@ -45,7 +45,7 @@ prefix on hostnames and VLAN aliases, and the site's number in its addresses.
 ## Steps
 
 ```shell
-cd cherrymountain-brewery/spikes/site-profiles
+cd spikes/site-profiles
 python profiles.py --schema ~/sceptre-phenix/schemas
 ```
 

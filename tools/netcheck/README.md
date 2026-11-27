@@ -13,7 +13,7 @@ through the static routes, NAT, IPsec, and the vrouter rulesets the way phenix
 renders them.
 
 ```shell
-python tools/netcheck/run_netcheck.py          # from cherrymountain-brewery/
+python tools/netcheck/run_netcheck.py          # from the repository root
 python -m netcheck --variant lite              # from tools/netcheck/, or after pip install .
 (cd tools/netcheck && python -m pytest)        # the tests, 35 seconds
 ```

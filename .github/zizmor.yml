@@ -5,5 +5,5 @@ rules:
     # and the spike workflow and its composite action are written with it, so
     # these are ignored until the spike authors decide to move.
     ignore:
-      - cherrymountain-spikes.yml
+      - spikes.yml
       - action.yml

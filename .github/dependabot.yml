@@ -1,0 +1,26 @@
+# Dependabot keeps the pinned GitHub Actions and the base image of the dev
+# container current. The prek hook versions are in prek.toml
+# (`prek auto-update`), and the Python and Node pins of the hooks are there too.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/cm-lab
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 30
+    commit-message:
+      prefix: chore(ci)
+    groups:
+      actions:
+        patterns: ['*']
+  - package-ecosystem: docker
+    directory: /.devcontainer
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 30
+    commit-message:
+      prefix: chore(devcontainer)

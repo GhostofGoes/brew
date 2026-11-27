@@ -350,7 +350,7 @@ against a stub (a stand-in) of the script API of FUXA. It also runs
 against a simulator of plc-brewhouse and of the status of the cellar:
 
 ```shell
-python3 -m pytest fuxa/tests         # from cherrymountain-brewery/
+python3 -m pytest fuxa/tests         # from the repository root
 ```
 
 The test files are:

@@ -32,7 +32,7 @@ plant, because it changes the names and addresses under that place.
 ## Steps
 
 ```shell
-cd cherrymountain-brewery/spikes/multisite-stamp
+cd spikes/multisite-stamp
 python stamp.py --schema ~/sceptre-phenix/schemas
 ```
 

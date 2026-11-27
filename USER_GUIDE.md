@@ -119,12 +119,12 @@ git clone https://github.com/sandia-minimega/minimega.git
 git -C minimega checkout "$(cat sceptre-phenix/.github/e2e/minimega.ref)"
 
 sudo mkdir -p /phenix && sudo chown "$USER" /phenix
-git clone -b feat-secret-topo https://github.com/GhostofGoes/sceptre-phenix-topologies.git /phenix/topologies
-git -C /phenix/topologies lfs pull
+git clone https://github.com/GhostofGoes/brew.git /phenix/topologies/cherrymountain-brewery
+git -C /phenix/topologies/cherrymountain-brewery lfs pull
 ```
 
-Keep the topologies at `/phenix/topologies`. The `cherrymountain` app reads
-`/phenix/topologies/cherrymountain-brewery` from inside the phenix container.
+Keep the clone at `/phenix/topologies/cherrymountain-brewery`. The
+`cherrymountain` app reads that path from inside the phenix container.
 
 Make sure that Git LFS fetched the PLC programs. A file of about 130 bytes is
 only a pointer to the real file:
@@ -858,7 +858,7 @@ teardown.
    and prints `PASS` or `FAIL` for each of its 30 checks:
 
    ```shell
-   cd cherrymountain-brewery/spikes/wan-bgp
+   cd spikes/wan-bgp
    sudo -E python3 netns_lab.py
    ```
 
@@ -901,7 +901,7 @@ One job builds the tunnels with WireGuard, and two jobs build them with
 route-based IPsec.
 
 This part runs in GitHub Actions, as the `wan-bgp-vyos` job of the workflow
-[cherrymountain-spikes.yml](../.github/workflows/cherrymountain-spikes.yml).
+[spikes.yml](.github/workflows/spikes.yml).
 The job builds the VyOS image, patches phenix, and boots the routers. Then it
 runs 53 checks, with the faults and a restart of the head office. It has
 three parts: one for WireGuard, and two for IPsec (only the site opens the
@@ -917,7 +917,7 @@ tunnels, or both ends open them). It uploads
 - The workflow also has a manual trigger with a `spikes` input. Set the input
   to `wan-bgp-vyos`. The runs above did not use this trigger.
 - No person tried a run on a different phenix host. The steps of the job are
-  the recipe. The action [.github/actions/cm-lab](../.github/actions/cm-lab)
+  the recipe. The action [.github/actions/cm-lab](.github/actions/cm-lab)
   prepares the host. The patch in `spikes/wan-bgp/patches/` goes onto phenix.
   `sudo -E python vyos_ci.py` in `spikes/wan-bgp` runs the experiment
   `spike-wan-bgp`.
@@ -935,7 +935,6 @@ plant (`plant/plant.yaml`) and a short description of each site
 them, run these commands on a host that has Python, `pyyaml`, and `pydantic`:
 
 ```shell
-cd cherrymountain-brewery
 (cd tools/plantgen && python -m plantgen)            # the files of each site, and its topology and workflow
 python fuxa/build_project.py --all                   # the FUXA projects, with those of each site
 python sync.py                                       # the scenario and the injected files of each site
@@ -1117,7 +1116,7 @@ docker exec phenix phenix experiment delete cherrymountain-lite    # remove it, 
 
 | Symptom | What to do |
 |---|---|
-| `... is a Git LFS pointer; run git lfs pull` | Run `git -C /phenix/topologies lfs pull`. Then apply again |
+| `... is a Git LFS pointer; run git lfs pull` | Run `git -C /phenix/topologies/cherrymountain-brewery lfs pull`. Then apply again |
 | No `/dev/kvm` | Run `kvm-ok`. On a cloud VM, turn on nested virtualization |
 | An image build fails | Read the end of `/phenix/images/<name>.log` for the URL or package that failed. Then try again. The builds download from Ubuntu, GitHub, PyPI, npm, and vendor repositories |
 | The VyOS build fails | The build uses the rolling branch of VyOS, which sometimes breaks for a day. Try again later. Keep a `vyos.qc2` that works |

@@ -7,7 +7,7 @@ name = "cherrymountain-viz"
 version = "0.1.0"
 description = "cm-viz: the CherryMountain white cell's 3D view (three.js) and its WebSocket bridge"
 requires-python = ">=3.12"
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 dependencies = ["pydantic>=2.7", "websockets>=15,<16"]
 
 [project.optional-dependencies]
