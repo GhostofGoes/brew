@@ -4,12 +4,44 @@ Instructions for AI coding agents that work in this repository. Read
 [CONTRIBUTING.md](.github/CONTRIBUTING.md) for the branch, commit, and pull
 request rules.
 
+## Repository
+
+This repository is the CherryMountain Brewery range: an OT cyber range for
+[phenix](https://github.com/sandialabs/sceptre-phenix). [README.md](README.md)
+describes the range and lists what each directory holds.
+[USER_GUIDE.md](USER_GUIDE.md) is the procedure to run it, and
+[docs/DESIGN.md](docs/DESIGN.md) is the design.
+
+- The repository root is the topology directory. On a phenix host it is cloned
+  to `/phenix/topologies/cherrymountain-brewery`, and the configs name that
+  path. Do not rename the top-level directories that the configs name
+  (`phenix-configs/`, `phenix-images/`, `phenix-injects/`).
+- `plant/plant.yaml` is the source of the plant model. Do not edit a generated
+  file (`plant/generated/`, the app blocks in the scenarios, the FUXA projects,
+  the copies under `phenix-injects/`, the PLC program ZIPs). Change the source
+  and run the tools again, in the order that "Regenerate and test" in the
+  README gives.
+- Commit the change, the generated files (`chore: regenerate ...`), and the
+  documentation as separate commits.
+- Every `*.zip` is in Git LFS. Run `git lfs pull` before the hooks: without the
+  program ZIPs, some tests fail for a reason that is not your change.
+- The range runs on forks of phenix, of its apps, and of its image recipes.
+  They are other repositories, and `prek.toml` pins a commit of the apps
+  repository for the hooks that test the `cherrymountain` app
+  ([Companion repositories](.github/CONTRIBUTING.md#companion-repositories)).
+  When a change here makes that pin stale, say so. Do not skip the hook.
+- The Spikes workflow (`.github/workflows/spikes.yml`) boots real VMs and is
+  slow. It runs on a push to `main` that changes `spikes/**`, the WAN generator,
+  or the workflow itself, and on request (`workflow_dispatch`, which can select
+  the spikes to run). Put `[skip ci]` in the message of a commit to those paths
+  when a run is not wanted.
+
 ## Checks
 
-All checks are [prek](https://prek.j178.dev/) hooks in `prek.toml`. CI runs
-them in the Linux dev container in `.devcontainer/`. Some hooks need Linux
-tools (for example, `systemd-analyze`), so run the checks in the same
-container.
+All checks, the test suites included, are [prek](https://prek.j178.dev/) hooks
+in `prek.toml`. CI runs them in the Linux dev container in `.devcontainer/`.
+Some hooks need Linux tools (for example, `systemd-analyze`), so run the checks
+in the same container.
 
 Do not skip a hook with `SKIP` or `PREK_SKIP` because a tool is missing on
 your machine. Run the hook in the dev container.
@@ -64,16 +96,16 @@ With Docker only:
 1. Pull the image:
 
    ```powershell
-   docker pull ghcr.io/sandialabs/sceptre-phenix-topologies/devcontainer:latest
+   docker pull ghcr.io/ghostofgoes/brew/devcontainer:latest
    ```
 
 2. Run the hooks:
 
    ```powershell
    docker run --rm -v "${PWD}:/workspace" -w /workspace `
-     -v sceptre-phenix-topologies-cache-root:/cache `
+     -v brew-cache-root:/cache `
      -v /var/run/docker.sock:/var/run/docker.sock `
-     ghcr.io/sandialabs/sceptre-phenix-topologies/devcontainer:latest `
+     ghcr.io/ghostofgoes/brew/devcontainer:latest `
      prek run --all-files
    ```
 

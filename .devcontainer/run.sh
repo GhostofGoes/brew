@@ -15,7 +15,7 @@
 # writes is read-only to the others.
 #
 # Environment:
-#   DEVCONTAINER_IMAGE_REPO  image repository (default: the upstream GHCR one)
+#   DEVCONTAINER_IMAGE_REPO  image repository (default: the GHCR one of GhostofGoes/brew)
 #   DEVCONTAINER_DOCKER_SOCK Docker socket to mount (default: /var/run/docker.sock)
 #   DEVCONTAINER_CA_FILE     PEM file with more CA certificates to trust, for a
 #                            network proxy that inspects TLS
@@ -24,7 +24,7 @@ set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(git -C "$here" rev-parse --show-toplevel)
 common=$(cd "$root" && cd "$(git rev-parse --git-common-dir)" && pwd)
-repo=${DEVCONTAINER_IMAGE_REPO:-ghcr.io/sandialabs/sceptre-phenix-topologies/devcontainer}
+repo=${DEVCONTAINER_IMAGE_REPO:-ghcr.io/ghostofgoes/brew/devcontainer}
 image="$repo:df-$(git -C "$root" hash-object "$here/Dockerfile" | cut -c1-16)"
 sock=${DEVCONTAINER_DOCKER_SOCK:-/var/run/docker.sock}
 
@@ -50,7 +50,7 @@ args=(
     --rm --init
     --user "$(id -u):$(id -g)"
     -v "$root:$root"
-    -v "sceptre-phenix-topologies-cache-$(id -u):/cache"
+    -v "brew-cache-$(id -u):/cache"
     -w "$workdir"
     -e CI -e GITHUB_ACTIONS -e PREK_SKIP -e SKIP -e TERM
 )
