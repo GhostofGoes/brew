@@ -1147,7 +1147,7 @@ to pin down how the v4 runtime clamps and segments the holding registers.
 
 `spikes/` and `tests/` are exempt from the stricter checks. The system tools
 that some hooks need are listed in
-[CONTRIBUTING](../.github/CONTRIBUTING.md#code-quality).
+[CONTRIBUTING](.github/CONTRIBUTING.md#code-quality).
 
 ## Network (Phase 1)
 

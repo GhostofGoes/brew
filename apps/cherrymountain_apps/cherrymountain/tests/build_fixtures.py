@@ -22,7 +22,7 @@ from typing import Any
 import yaml
 
 HERE: Path = Path(__file__).resolve().parent
-ROOT: Path = HERE.parents[3]  # cherrymountain-brewery/
+ROOT: Path = HERE.parents[3]  # the repository root
 FIXTURES: Path = HERE / "fixtures"
 #: variant -> (workflow file, topology file).
 VARIANTS: dict[str, tuple[str, str]] = {

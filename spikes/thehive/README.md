@@ -361,7 +361,7 @@ with a 2 GB limit, plus its analyzer containers. So TheHive needs **4 vCPU /
 | `full` + TheHive (no Cortex) | 44 | 71 | 121 GB | ~7 GB | Rejected; needs the slim Malcolm to be safe |
 | `full` + TheHive + Cortex | 44 | 71 | 123 GB | ~5 GB | Rejected |
 | `lite` | 37 | 48 | 71 GB | — | Unchanged: no SOC |
-| `ci` | 5 | 7 | ~8 GB | — | Unchanged; the mapping tests (`poc/test_cm_wazuh_case.py`, later `tests/soc`) run in the Lint workflow |
+| `ci` | 5 | 7 | ~8 GB | — | Unchanged; the mapping tests (`poc/test_cm_wazuh_case.py`, later `tests/soc`) run in the CI workflow |
 
 **Boot time against SoH** (`startupDelay: 10m`, `c2Timeout: 15m`):
 
@@ -529,7 +529,7 @@ script also runs under Wazuh's embedded Python 3.10 (`--dry-run`).
 ### How to run the proof
 
 ```bash
-cd cherrymountain-brewery/spikes/thehive/poc
+cd spikes/thehive/poc
 WORK=/some/scratch ./run_poc.sh thehive    # TheHive 5.8.1 single container, org, service key
 WORK=/some/scratch ./run_poc.sh wazuh      # Wazuh 4.14.1 manager + rules + integration (internal network)
 WORK=/some/scratch ./run_poc.sh send       # samples -> TheHive alerts, re-delivery dedup

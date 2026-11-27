@@ -144,7 +144,7 @@ Phase 0 spike kits or the integration test. [§17](#17-testing-and-validation)
 lists the hooks.
 
 - **Every check runs locally and in CI.** `prek run --all-files` runs the same
-  hooks as the Lint workflow (prek 0.5.10; the workflow runs on push to `main`
+  hooks as the CI workflow (prek 0.5.10; the workflow runs on push to `main`
   and on `pull_request`).
 - **Schema validation.** Every phenix config is validated with
   `check-jsonschema` 0.38.0 against sceptre-phenix's JSON Schemas. The schemas
@@ -3779,7 +3779,7 @@ exists, and it never assumes a fixed `localhost` port.
 | `cm-svc` | noble minbase | chrony, dnsmasq, rsyslog, Wazuh agent, and BACpypes3 in a venv for the BBMD service (the topology injects `cm_bbmd.py` and `cm-bbmd.service`, on ot-svc and bas-bbmd only) | |
 | `cm-malcolm` | noble minbase, 64G | Docker + the 22 pinned Malcolm images saved in the image (loaded at first boot), Malcolm's checkout, openvswitch, the host settings of Malcolm's installer, and a Wazuh agent. The topology injects the rest: the provisioning script, which runs Malcolm's configurator on the profile's settings file and does the four upload-pipeline setup steps, and the capture unit, which adds the capture flow ([§14](#14-blue-team-monitoring)) | Largest image |
 | `cm-wazuh` | noble minbase, 32G | Wazuh all-in-one (manager, indexer, dashboard), offline install | |
-| `cm-wireguard` | noble minbase | Derived from the repo's `renewables/wind/plant/phenix-images/wireguard.yml` (focal), rebased on noble, plus chrony and a Wazuh agent. IP forwarding is not on in the image: the startup hook turns it on once the nftables policy has loaded ([§13](#13-vendor-remote-access)) | dmz-vpn |
+| `cm-wireguard` | noble minbase | Derived from `renewables/wind/plant/phenix-images/wireguard.yml` of sceptre-phenix-topologies (focal), rebased on noble, plus chrony and a Wazuh agent. IP forwarding is not on in the image: the startup hook turns it on once the nftables policy has loaded ([§13](#13-vendor-remote-access)) | dmz-vpn |
 | `kali-purple` | upstream (`sandialabs/sceptre-phenix-images`), kali-rolling mingui, 80G | Kali Purple (XFCE with the purple theme and menu), Suricata, Wireshark, Docker, PEAT, and parseus with its offline bundle of container images | soc-purple. Not built from a config in this repository: `make kali-purple-bundle && make kali-purple PARSEUS_OFFLINE=1` in the images repository (the Makefile injects miniccc). Without `PARSEUS_OFFLINE` parseus's first-boot install needs the internet |
 | `vyos` | prebuilt (sceptre-phenix-images) | VyOS rolling with miniccc built in (`-m` build flag). It reports `999.<timestamp>`, not 1.5, since vyos-build T9547 changed rolling versioning on 2026-10-31 | `oras pull`, or build with the images repo's `scripts/vyos/build-vyos.sh`; topology uses `os_type: vyos`, `inject_partition: 3`, ≥2 GB. `rolling` moves daily, so record the build used |
 
@@ -4220,7 +4220,7 @@ title, which the open-source edition cannot change.
 | `vyatta.tmpl` and VyOS image fixes (upstream) | `sandialabs/sceptre-phenix`, `sandialabs/sceptre-phenix-images` | `set vpn ipsec ike-group IKE-1W key-exchange ikev2`; the `ike-group` fix if `main` still has the `esp-group` typo; `build-vyos.sh` fixes for the current vyos-build image naming |
 | phenix `vrouter` app limitations (upstream) | `sandialabs/sceptre-phenix` | Found while building the network. (1) The app keeps the NTP address of the first router that has one and uses it for every later router, so isp-rtr comes first in the topology and `cm-vyos-config.sh` sets fw-ot's source. (2) The rendered rulesets filter only the `forward` chain, so traffic to a router's own address (IKE, SSH, NTP, syslog) is never filtered. (3) Rules have no `log` field, so `cm-vyos-config.sh` turns on `default-log`. (4) netem `loss` is an integer percent (the design wants 0.1 %, the files use 1). (5) The template has no `key-exchange`, which the row above also asks for. (6) Rules have no IPsec policy match (`ipsec match-ipsec-in`), so a rule for traffic that should arrive only through a tunnel also passes a spoofed plaintext packet; `cm-vyos-config.sh` adds it to the utility DNP3 rule. Until these merge, the script and the topology order work around them |
 | phenix PR #130 follow-up (upstream) | `sandialabs/sceptre-phenix` (PR 130, `activeshadow:serial-app`) | Reconnect the host `socat` when a VM is redeployed (after `vm kill` it exits and is never restarted), lower the `-d -d -d -d` log volume (4.4 MB per 5 minutes), and isolate why a restarted VM did not register its C2 client. The design stays on the current serial app until then ([§15.2](#152-apps)) |
-| `sync.py` and `netcheck` | `cherrymountain-brewery/sync.py`, `tools/netcheck/` | `sync.py` embeds plantgen's app blocks in the scenarios, copies generated files into `phenix-injects/`, and checks them (LFS-pointer aware). `netcheck` traces every §10.3 conduit and default drop statically ([§17](#17-testing-and-validation)). Built |
+| `sync.py` and `netcheck` | `sync.py`, `tools/netcheck/` | `sync.py` embeds plantgen's app blocks in the scenarios, copies generated files into `phenix-injects/`, and checks them (LFS-pointer aware). `netcheck` traces every §10.3 conduit and default drop statically ([§17](#17-testing-and-validation)). Built |
 | Repository lint hooks | `tools/lint/` | prek hooks that run `systemd-analyze` on units and shellcheck on shell embedded in image YAML ([§17](#17-testing-and-validation)) |
 | phenix `ot-sim` app: BACnet support (optional upstream) | `sandialabs/sceptre-phenix-apps` | The app knows only Modbus and DNP3: for a host with only a `bacnet` block it renders no I/O module and sets no `helics/federate` annotation. Until it supports per-host `bacnet: {interface: IF0:47808, instance: N, devices: [...]}` and `bacnet:` point attributes, the `cherrymountain` app adds the I/O module, the BACnet module, and the annotation for those hosts (`render_otsim`), and a test fails when the upstream app starts to render them. Rendering for the upstream version of the BACnet module is on the `feat-otsim-bacnet` branch of the phenix-apps fork ([§19](#19-risks-and-open-questions)) |
 | phenix `ot-sim` app: telnet support (optional upstream) | `sandialabs/sceptre-phenix-apps`; banner in `patsec/ot-sim` | Generate the `telnet` module config, which the `cherrymountain` app injects until then. Optionally add an SEL-style banner to ot-sim's banner map |
@@ -4386,11 +4386,11 @@ such a Forwarded-NPDU to that address on loopback and gets the unicast I-Am.
   test checks that every `cm-*` script a SoH test or SCORCH step of the full
   scenario runs on a VM is injected there by the topology or rendered by the
   app.
-- **What CI runs.** The Lint workflow runs `prek run --all-files`: every hook
+- **What CI runs.** The CI workflow runs `prek run --all-files`: every hook
   above, so the nine pytest suites (1,387 tests: sim 401, apps 302, fuxa 180,
   tests/soc 182, plantgen 113, netcheck 98, viz 45 without the browser test,
   tests/brand 37, tests/bacnet 29) and the sync checks run on each pull
-  request. The CherryMountain spikes workflow runs the VM spikes on
+  request. The Spikes workflow runs the VM spikes on
   GitHub-hosted runners with KVM, on a push that changes `spikes/` or by hand
   ([spikes/README.md](../spikes/README.md)). Three checks do not run in CI and
   are run by hand: the Docker integration test (`tests/integration/ci_slice_docker.sh`, minutes and

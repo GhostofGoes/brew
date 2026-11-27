@@ -15,7 +15,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-#: cherrymountain-brewery/ (this file is tools/netcheck/netcheck/model.py).
+#: The repository root (this file is tools/netcheck/netcheck/model.py).
 ROOT: Path = Path(__file__).resolve().parents[3]
 
 

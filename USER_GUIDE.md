@@ -86,12 +86,12 @@ git clone https://github.com/sandia-minimega/minimega.git
 git -C minimega checkout "$(cat sceptre-phenix/.github/e2e/minimega.ref)"
 
 sudo mkdir -p /phenix && sudo chown "$USER" /phenix
-git clone -b feat-secret-topo https://github.com/GhostofGoes/sceptre-phenix-topologies.git /phenix/topologies
-git -C /phenix/topologies lfs pull
+git clone https://github.com/GhostofGoes/brew.git /phenix/topologies/cherrymountain-brewery
+git -C /phenix/topologies/cherrymountain-brewery lfs pull
 ```
 
-Keep the topologies at **`/phenix/topologies`**. The `cherrymountain` app reads
-`/phenix/topologies/cherrymountain-brewery` from inside the phenix container.
+Keep the clone at `/phenix/topologies/cherrymountain-brewery`. The
+`cherrymountain` app reads that path from inside the phenix container.
 
 Check that Git LFS fetched the PLC programs. A file of about 130 bytes is only
 a pointer:
@@ -751,7 +751,7 @@ docker exec phenix phenix experiment delete cherrymountain-lite    # remove it, 
 
 | Symptom | What to do |
 |---|---|
-| `... is a Git LFS pointer; run git lfs pull` | Run `git -C /phenix/topologies lfs pull`, then apply again |
+| `... is a Git LFS pointer; run git lfs pull` | Run `git -C /phenix/topologies/cherrymountain-brewery lfs pull`, then apply again |
 | No `/dev/kvm` | `kvm-ok`; on a cloud VM turn on nested virtualization |
 | An image build fails | Read the end of `/phenix/images/<name>.log` for the URL or package that failed, and try again. The builds download from Ubuntu, GitHub, PyPI, npm, and vendor repositories |
 | The VyOS build fails | It builds VyOS's rolling branch, which sometimes breaks for a day. Try later, and keep a `vyos.qc2` that works |

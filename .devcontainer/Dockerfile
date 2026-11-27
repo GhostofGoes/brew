@@ -3,8 +3,8 @@
 # input to the image must be in this file (there is no COPY).
 FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
 
-LABEL org.opencontainers.image.source="https://github.com/sandialabs/sceptre-phenix-topologies" \
-      org.opencontainers.image.description="Linux tools for the sceptre-phenix-topologies prek hooks" \
+LABEL org.opencontainers.image.source="https://github.com/GhostofGoes/brew" \
+      org.opencontainers.image.description="Linux tools for the prek hooks of the CherryMountain Brewery range" \
       org.opencontainers.image.licenses="GPL-3.0-only"
 
 # PREK_VERSION must be at least minimum_prek_version in prek.toml.

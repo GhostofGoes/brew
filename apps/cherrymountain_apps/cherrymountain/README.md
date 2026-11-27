@@ -493,7 +493,7 @@ blue team would take for an attack.
 ## Tests
 
 ```shell
-cd cherrymountain-brewery/apps
+cd apps
 python -m pytest
 ```
 

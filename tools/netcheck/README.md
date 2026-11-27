@@ -9,7 +9,7 @@ IP plan (section 10.2), conduit matrix (section 10.3), and node inventory
 IPsec, and the vrouter rulesets the way phenix renders them.
 
 ```shell
-python tools/netcheck/run_netcheck.py          # from cherrymountain-brewery/
+python tools/netcheck/run_netcheck.py          # from the repository root
 python -m netcheck --variant lite              # from tools/netcheck/, or after pip install .
 (cd tools/netcheck && python -m pytest)        # the tests, 35 seconds
 ```

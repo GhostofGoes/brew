@@ -33,7 +33,7 @@ vmdb2 and debootstrap; the build itself needs internet access and no
 `<dir>/<name>.qc2`. Replace `<name>` with the image name:
 
 ```shell
-phenix config create cherrymountain-brewery/phenix-images/<name>.yml
+phenix config create phenix-images/<name>.yml
 phenix image build -o <dir> -c -x <name>
 phenix image inject-miniexe /usr/local/bin/miniccc <dir>/<name>.qc2
 ```
@@ -130,7 +130,7 @@ tools), the OpenPLC runtime's web interface (a PLC's own), and InfluxDB's.
   with `CM_SIM_TREE` and `CM_VIZ_TREE`, the git tree ids of the two packages
   (`sim/cherrymountain_sim`, `viz/cherrymountain_viz`) at that commit. After a
   change to either package, a second commit moves all three
-  (`git rev-parse <commit>:cherrymountain-brewery/sim/cherrymountain_sim`); a test fails until it
+  (`git rev-parse <commit>:sim/cherrymountain_sim`); a test fails until it
   does, because federates of an older `sim/` stop on the names of a newer
   `helics.json`;
   `opensearch=3.9.0` (apt, held; repository key

@@ -124,7 +124,7 @@ VM per VLAN.
 
 ## Result (CI: Zeek in Docker, and the mirror app into a stand-in capture VM)
 
-Two CI jobs of `.github/workflows/cherrymountain-spikes.yml`: **Spike malcolm
+Two CI jobs of `.github/workflows/spikes.yml`: **Spike malcolm
 (Docker on the runner)** (`docker_fit.sh`) and **Spike malcolm (mirror
 capture)** (`ci_mirror.py`).
 

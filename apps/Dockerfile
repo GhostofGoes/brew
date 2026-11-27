@@ -3,7 +3,7 @@
 # phenix-scorch-component-plantevent.
 #
 # Build from this directory:
-#   docker build -t cherrymountain-phenix cherrymountain-brewery/apps
+#   docker build -t cherrymountain-phenix apps
 #
 # The base image already ships phenix-apps (AppBase, ComponentBase) and every
 # Python dependency of this package, so it installs with --no-deps. The default
@@ -14,7 +14,7 @@
 # 16), which is built locally and has no registry digest. Name that image with
 # the build argument:
 #   docker build --build-arg PHENIX_IMAGE=phenix:cherrymountain \
-#     -t cherrymountain-phenix cherrymountain-brewery/apps
+#     -t cherrymountain-phenix apps
 ARG PHENIX_IMAGE=ghcr.io/sandialabs/sceptre-phenix/phenix:main@sha256:b64b36764fa42a7ca199f42262a10644c07e967f63beaf1d34fa75648d0c2ef6
 FROM ${PHENIX_IMAGE}
 

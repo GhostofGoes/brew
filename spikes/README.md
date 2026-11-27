@@ -4,7 +4,7 @@ Runnable checks for the Phase 0 spikes in [DESIGN.md §18](../docs/DESIGN.md). T
 fuxa, otsim-noble and bacnet kits were run in Docker containers on
 a no-KVM host. The VM spikes (malcolm, vyos-ipsec, autotunnel, serial, bbmd)
 run in CI on GitHub-hosted runners with KVM (the Malcolm and the netns BBMD jobs need Docker only, and the BBMD jobs run FUXA in Docker): workflow
-[`cherrymountain-spikes.yml`](../../.github/workflows/cherrymountain-spikes.yml),
+[`spikes.yml`](../.github/workflows/spikes.yml),
 one job per spike, with the phenix and minimega setup of the phenix fork's E2E
 tests, images built by `ci/build_image.sh`, and evidence uploaded as
 `evidence-<spike>` artifacts (run URLs are in each README's Result). Each

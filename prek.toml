@@ -7,13 +7,13 @@ update.cooldown_days = 30
 minimum_prek_version = "0.5.10"
 default_language_version.python = "3.12"
 
-# This repository contains topology YAML, shell/Python injects, documentation,
-# and generated experiment data. Generated data, vendored drivers, and archived
-# wind test harness are excluded from content checks.
+# This repository contains the CherryMountain Brewery range: phenix configs,
+# shell/Python injects, the simulation, tools, documentation, and generated
+# files. Vendored libraries and recorded spike evidence are excluded from
+# content checks.
 #
-# The cherrymountain-brewery checks (phenix schemas, systemd units, .desktop
-# files, Dockerfiles, compose files, block-style YAML) are scoped to that
-# directory. spikes/ and tests/ are exempt from them.
+# spikes/ and tests/ are exempt from the stricter checks (style-level
+# shellcheck, systemd units, .desktop files, Dockerfiles, compose files).
 #
 # All hooks at the same priority level run concurrently. Hooks with a lower
 # priority run first so file fixers complete before validation hooks. The
@@ -52,12 +52,7 @@ args = [
 exclude = { glob = [
     "**/*.DSS",
     "**/*.dss",
-    "cherrymountain-brewery/viz/cherrymountain_viz/web/vendor/**",
-    "renewables/wind/plant/phenix-images/workstation/drivers/**",
-    "renewables/wind/plant/phenix-injects/wind-test-harness/**",
-    "renewables/wind/plant/simulation-replay/docs/**",
-    "renewables/wind/plant/simulation-replay/grafana/dashboards/**",
-    "renewables/wind/plant/simulation-replay/manager/wind_data_final/**",
+    "viz/cherrymountain_viz/web/vendor/**",
 ] }
 priority = "check"
 
@@ -72,22 +67,21 @@ args = [
     "--severity=warning",
     "--exclude=SC1090,SC1091",
 ]
-exclude = '^renewables/wind/plant/(?:phenix-injects/wind-test-harness/|simulation-replay/(?:setup|manager/wait-for-elastic)$)'
 priority = "check"
 
 [[repos.hooks]]
-# cherrymountain-brewery is held to a stricter level: every finding, down to
-# style. The hook above also runs on these files, and `types = ["shell"]`
-# selects them by extension or by shebang, so extensionless scripts count.
+# Everything outside spikes/ and tests/ is held to a stricter level: every
+# finding, down to style. The hook above also runs on these files, and
+# `types = ["shell"]` selects them by extension or by shebang, so
+# extensionless scripts count.
 id = "shellcheck"
-alias = "shellcheck-cherrymountain"
-name = "shellcheck (cherrymountain, style level)"
+alias = "shellcheck-style"
+name = "shellcheck (style level)"
 args = [
     "--severity=style",
     "--exclude=SC1090,SC1091",
 ]
-files = '^cherrymountain-brewery/'
-exclude = '^cherrymountain-brewery/(spikes|tests)/'
+exclude = '^(spikes|tests)/'
 priority = "check"
 
 # Validate YAML style and structure.
@@ -112,9 +106,9 @@ alias = "yamllint-block-style"
 name = "yamllint (phenix block style)"
 args = [
     "--strict",
-    "--config-file=cherrymountain-brewery/.yamllint-block-style.yml",
+    "--config-file=.yamllint-block-style.yml",
 ]
-files = '^cherrymountain-brewery/(phenix[^/]*\.ya?ml|phenix-configs/.+\.ya?ml|phenix-images/.+\.ya?ml|plant/generated/[^/]+/phenix/.+\.ya?ml)$'
+files = '^(phenix[^/]*\.ya?ml|phenix-configs/.+\.ya?ml|phenix-images/.+\.ya?ml|plant/generated/[^/]+/phenix/.+\.ya?ml)$'
 priority = "check"
 
 # Enforce conventional commit messages.
@@ -137,7 +131,7 @@ args = [
 ]
 priority = "check"
 
-# Schema-validate every phenix config of cherrymountain-brewery against the
+# Schema-validate every phenix config against the
 # JSON Schemas that sceptre-phenix publishes in schemas/. The schemas are
 # fetched from a commit-pinned URL (so check-vcs-permalinks passes and the
 # result never changes underneath us) and cached by check-jsonschema.
@@ -159,7 +153,7 @@ args = [
     "--base-uri",
     "https://raw.githubusercontent.com/sandialabs/sceptre-phenix/6cc94b233e03c7a3979188ffcd0f33316957e0a8/schemas/",
 ]
-files = '^cherrymountain-brewery/phenix-configs/topology[^/]*\.ya?ml$'
+files = '^phenix-configs/topology[^/]*\.ya?ml$'
 priority = "check"
 
 [[repos.hooks]]
@@ -172,7 +166,7 @@ args = [
     "--base-uri",
     "https://raw.githubusercontent.com/sandialabs/sceptre-phenix/6cc94b233e03c7a3979188ffcd0f33316957e0a8/schemas/",
 ]
-files = '^cherrymountain-brewery/phenix-configs/scenario[^/]*\.ya?ml$'
+files = '^phenix-configs/scenario[^/]*\.ya?ml$'
 priority = "check"
 
 [[repos.hooks]]
@@ -185,7 +179,7 @@ args = [
     "--base-uri",
     "https://raw.githubusercontent.com/sandialabs/sceptre-phenix/6cc94b233e03c7a3979188ffcd0f33316957e0a8/schemas/",
 ]
-files = '^cherrymountain-brewery/\.?phenix[^/]*\.ya?ml$'
+files = '^\.?phenix[^/]*\.ya?ml$'
 priority = "check"
 
 [[repos.hooks]]
@@ -198,7 +192,7 @@ args = [
     "--base-uri",
     "https://raw.githubusercontent.com/sandialabs/sceptre-phenix/6cc94b233e03c7a3979188ffcd0f33316957e0a8/schemas/",
 ]
-files = '^cherrymountain-brewery/phenix-images/[^/]+\.ya?ml$'
+files = '^phenix-images/[^/]+\.ya?ml$'
 priority = "check"
 
 [[repos.hooks]]
@@ -214,8 +208,8 @@ args = [
     "--base-uri",
     "https://raw.githubusercontent.com/sandialabs/sceptre-phenix/6cc94b233e03c7a3979188ffcd0f33316957e0a8/schemas/",
 ]
-files = '^cherrymountain-brewery/phenix-configs/.+\.ya?ml$'
-exclude = '^cherrymountain-brewery/phenix-configs/(topology|scenario)[^/]*\.ya?ml$'
+files = '^phenix-configs/.+\.ya?ml$'
+exclude = '^phenix-configs/(topology|scenario)[^/]*\.ya?ml$'
 priority = "check"
 
 # Dockerfiles: hadolint's official hook runs the hadolint image, so it needs
@@ -228,8 +222,7 @@ rev = "v2.14.0"
 [[repos.hooks]]
 id = "hadolint-docker"
 entry = "ghcr.io/hadolint/hadolint:v2.14.0 hadolint"
-files = '^cherrymountain-brewery/'
-exclude = '^cherrymountain-brewery/spikes/'
+exclude = '^spikes/'
 priority = "check"
 
 # Compose files (phenix-injects/guacamole/docker-compose.yml today).
@@ -239,8 +232,8 @@ rev = "v3.1.0"
 
 [[repos.hooks]]
 id = "dclint"
-files = '^cherrymountain-brewery/(.*/)?((docker-)?compose|[^/]+\.compose)[^/]*\.ya?ml$'
-exclude = '^cherrymountain-brewery/(spikes|tests)/'
+files = '^(.*/)?((docker-)?compose|[^/]+\.compose)[^/]*\.ya?ml$'
+exclude = '^(spikes|tests)/'
 priority = "check"
 
 # Hooks that live in this repository.
@@ -253,13 +246,13 @@ repo = "local"
 id = "cm-image-shellcheck"
 name = "shellcheck (shell embedded in phenix images)"
 language = "python"
-entry = "python cherrymountain-brewery/tools/lint/check_image_shell.py"
+entry = "python tools/lint/check_image_shell.py"
 additional_dependencies = [
     "pydantic==2.14.3",
     "pyyaml==6.0.3",
     "shellcheck-py==0.11.0.1",
 ]
-files = '^cherrymountain-brewery/phenix-images/[^/]+\.ya?ml$'
+files = '^phenix-images/[^/]+\.ya?ml$'
 priority = "check"
 
 [[repos.hooks]]
@@ -270,14 +263,14 @@ priority = "check"
 id = "cm-systemd-units"
 name = "systemd-analyze (units)"
 language = "python"
-entry = "python cherrymountain-brewery/tools/lint/check_units.py"
+entry = "python tools/lint/check_units.py"
 verbose = true
 additional_dependencies = [
     "pydantic==2.14.3",
     "pyyaml==6.0.3",
 ]
-files = '^cherrymountain-brewery/(.*\.service|phenix-images/[^/]+\.ya?ml)$'
-exclude = '^cherrymountain-brewery/(spikes|tests)/'
+files = '^(.*\.service|phenix-images/[^/]+\.ya?ml)$'
+exclude = '^(spikes|tests)/'
 priority = "check"
 
 [[repos.hooks]]
@@ -288,12 +281,12 @@ priority = "check"
 id = "cm-netcheck"
 name = "netcheck (cherrymountain IP plan and conduits)"
 language = "python"
-entry = "python cherrymountain-brewery/tools/netcheck/run_netcheck.py -q"
+entry = "python tools/netcheck/run_netcheck.py -q"
 additional_dependencies = [
     "pydantic==2.14.3",
     "pyyaml==6.0.3",
 ]
-files = '^cherrymountain-brewery/(phenix[^/]*\.ya?ml|phenix-configs/|phenix-injects/|tools/netcheck/)'
+files = '^(phenix[^/]*\.ya?ml|phenix-configs/|phenix-injects/|tools/netcheck/)'
 pass_filenames = false
 priority = "check"
 
@@ -304,13 +297,13 @@ priority = "check"
 id = "cm-netcheck-tests"
 name = "pytest (netcheck, sync.py, BBMD service, VyOS script)"
 language = "python"
-entry = "python -m pytest -q -p no:cacheprovider cherrymountain-brewery/tools/netcheck/tests"
+entry = "python -m pytest -q -p no:cacheprovider tools/netcheck/tests"
 additional_dependencies = [
     "pydantic==2.14.3",
     "pyyaml==6.0.3",
     "pytest==9.2.0",
 ]
-files = '^cherrymountain-brewery/(tools/netcheck/|sync\.py$|brand/|phenix-injects/(bbmd|vrouter|guacamole)/)'
+files = '^(tools/netcheck/|sync\.py$|brand/|phenix-injects/(bbmd|vrouter|guacamole)/)'
 pass_filenames = false
 priority = "check"
 
@@ -322,14 +315,14 @@ priority = "check"
 id = "cm-bacnet-tests"
 name = "pytest (ot-sim BACnet module)"
 language = "python"
-entry = "python -m pytest -q -p no:cacheprovider cherrymountain-brewery/tests/bacnet"
+entry = "python -m pytest -q -p no:cacheprovider tests/bacnet"
 additional_dependencies = [
     "bacpypes3==0.0.110",
     "pydantic==2.14.3",
     "pytest==9.2.0",
     "pyzmq==27.3.0",
 ]
-files = '^cherrymountain-brewery/(tests/bacnet/|phenix-injects/otsim/)'
+files = '^(tests/bacnet/|phenix-injects/otsim/)'
 pass_filenames = false
 priority = "check"
 
@@ -341,13 +334,13 @@ priority = "check"
 id = "cm-soc-tests"
 name = "pytest (SOC and remote access)"
 language = "python"
-entry = "python -m pytest -q -p no:cacheprovider cherrymountain-brewery/tests/soc"
+entry = "python -m pytest -q -p no:cacheprovider tests/soc"
 additional_dependencies = [
     "pydantic==2.14.3",
     "pyyaml==6.0.3",
     "pytest==9.2.0",
 ]
-files = '^cherrymountain-brewery/(tests/soc/|phenix-injects/(wazuh|malcolm|wireguard|guacamole|desktop|ews)/|phenix-configs/topology-)'
+files = '^(tests/soc/|phenix-injects/(wazuh|malcolm|wireguard|guacamole|desktop|ews)/|phenix-configs/topology-)'
 pass_filenames = false
 priority = "check"
 
@@ -359,12 +352,12 @@ priority = "check"
 id = "cm-brand-tests"
 name = "pytest (brand on the screens)"
 language = "python"
-entry = "python -m pytest -q -p no:cacheprovider cherrymountain-brewery/tests/brand"
+entry = "python -m pytest -q -p no:cacheprovider tests/brand"
 additional_dependencies = [
     "pyyaml==6.0.3",
     "pytest==9.2.0",
 ]
-files = '^cherrymountain-brewery/(brand/|tests/brand/|sync\.py$|phenix-injects/(brand|desktop|grafana|fuxa|guacamole)/|phenix-configs/topology-|phenix-images/cm-(desktop|ews)\.yml|viz/cherrymountain_viz/web/)'
+files = '^(brand/|tests/brand/|sync\.py$|phenix-injects/(brand|desktop|grafana|fuxa|guacamole)/|phenix-configs/topology-|phenix-images/cm-(desktop|ews)\.yml|viz/cherrymountain_viz/web/)'
 pass_filenames = false
 priority = "check"
 
@@ -374,13 +367,13 @@ priority = "check"
 id = "cm-plantgen-tests"
 name = "pytest (plantgen)"
 language = "python"
-entry = "python -m pytest -q -p no:cacheprovider cherrymountain-brewery/tools/plantgen"
+entry = "python -m pytest -q -p no:cacheprovider tools/plantgen"
 additional_dependencies = [
     "pydantic==2.14.3",
     "pyyaml==6.0.3",
     "pytest==9.2.0",
 ]
-files = '^cherrymountain-brewery/(tools/plantgen/|plant/)'
+files = '^(tools/plantgen/|plant/)'
 pass_filenames = false
 priority = "check"
 
@@ -394,7 +387,7 @@ priority = "check"
 id = "cm-sim-tests"
 name = "pytest (cherrymountain_sim)"
 language = "python"
-entry = "python -m pytest -q -p no:cacheprovider cherrymountain-brewery/sim"
+entry = "python -m pytest -q -p no:cacheprovider sim"
 additional_dependencies = [
     "pydantic==2.14.3",
     "simpy==4.1.1",
@@ -404,7 +397,7 @@ additional_dependencies = [
     "ht==1.2.0",
     "pytest==9.2.0",
 ]
-files = '^cherrymountain-brewery/(sim/|plant/generated/|plc/|fuxa/)'
+files = '^(sim/|plant/generated/|plc/|fuxa/)'
 pass_filenames = false
 priority = "check"
 
@@ -416,7 +409,7 @@ priority = "check"
 id = "cm-viz-tests"
 name = "pytest (cm-viz)"
 language = "python"
-entry = "python -m pytest -q -p no:cacheprovider cherrymountain-brewery/viz"
+entry = "python -m pytest -q -p no:cacheprovider viz"
 additional_dependencies = [
     "pydantic==2.14.3",
     "websockets==15.0.1",
@@ -424,7 +417,7 @@ additional_dependencies = [
     "opendssdirect.py==0.8.4",
     "pytest==9.2.0",
 ]
-files = '^cherrymountain-brewery/(viz/|sim/|brand/|plant/generated/)'
+files = '^(viz/|sim/|brand/|plant/generated/)'
 pass_filenames = false
 priority = "check"
 
@@ -436,7 +429,7 @@ priority = "check"
 id = "cm-app-tests"
 name = "pytest (cherrymountain app, plantevent)"
 language = "python"
-entry = "python -m pytest -q -p no:cacheprovider cherrymountain-brewery/apps"
+entry = "python -m pytest -q -p no:cacheprovider apps"
 additional_dependencies = [
     "phenix-apps @ git+https://github.com/GhostofGoes/sceptre-phenix-apps@771e8d87a64770265862468664a1368dcfcbb99d#subdirectory=src/python",
     "Mako==1.3.10",
@@ -447,7 +440,7 @@ additional_dependencies = [
     "pytest==9.2.0",
     "pytest-mock==3.15.1",
 ]
-files = '^cherrymountain-brewery/(apps/|plant/|tools/plantgen/|fuxa/|recipes/|plc/|brand/|phenix-images/cm-sim\.yml|phenix-injects/(openplc|otsim|fuxa|brand|grafana)/|phenix-configs/)'
+files = '^(apps/|plant/|tools/plantgen/|fuxa/|recipes/|plc/|brand/|phenix-images/cm-sim\.yml|phenix-injects/(openplc|otsim|fuxa|brand|grafana)/|phenix-configs/)'
 pass_filenames = false
 priority = "check"
 
@@ -458,11 +451,11 @@ priority = "check"
 id = "cm-fuxa-check"
 name = "FUXA projects are current (build_project.py --all --check)"
 language = "python"
-entry = "python cherrymountain-brewery/fuxa/build_project.py --all --check"
+entry = "python fuxa/build_project.py --all --check"
 additional_dependencies = [
     "pydantic==2.14.3",
 ]
-files = '^cherrymountain-brewery/(fuxa/|plant/|recipes/|brand/)'
+files = '^(fuxa/|plant/|recipes/|brand/)'
 pass_filenames = false
 priority = "check"
 
@@ -477,12 +470,12 @@ priority = "check"
 id = "cm-fuxa-batch-tests"
 name = "pytest (FUXA batch engine)"
 language = "python"
-entry = "python -m pytest -q -p no:cacheprovider cherrymountain-brewery/fuxa"
+entry = "python -m pytest -q -p no:cacheprovider fuxa"
 additional_dependencies = [
     "pydantic==2.14.3",
     "pytest==9.2.0",
 ]
-files = '^cherrymountain-brewery/(fuxa/|recipes/|brand/|plant/generated/|plc/plc-brewhouse/|sim/tests/st_engine\.py)'
+files = '^(fuxa/|recipes/|brand/|plant/generated/|plc/plc-brewhouse/|sim/tests/st_engine\.py)'
 pass_filenames = false
 priority = "check"
 
@@ -494,12 +487,12 @@ priority = "check"
 id = "cm-sync-check"
 name = "sync.py --check (generated blocks and copies)"
 language = "python"
-entry = "python cherrymountain-brewery/sync.py --check"
+entry = "python sync.py --check"
 additional_dependencies = [
     "pydantic==2.14.3",
     "pyyaml==6.0.3",
 ]
-files = '^cherrymountain-brewery/(sync\.py|phenix-configs/scenario-[^/]*\.ya?ml|plant/|tools/plantgen/|plc/|fuxa/|recipes/|brand/|viz/cherrymountain_viz/web/brand/|phenix-injects/(openplc|fuxa|brand|guacamole)/)'
+files = '^(sync\.py|phenix-configs/scenario-[^/]*\.ya?ml|plant/|tools/plantgen/|plc/|fuxa/|recipes/|brand/|viz/cherrymountain_viz/web/brand/|phenix-injects/(openplc|fuxa|brand|guacamole)/)'
 pass_filenames = false
 priority = "check"
 
@@ -511,7 +504,7 @@ name = "desktop-file-validate"
 language = "system"
 entry = "desktop-file-validate"
 files = '\.desktop$'
-exclude = '^cherrymountain-brewery/(spikes|tests)/'
+exclude = '^(spikes|tests)/'
 priority = "check"
 
 # General repository hygiene checks built into prek.
@@ -528,7 +521,6 @@ types_or = [
     "json",
     "shell",
 ]
-exclude = '^renewables/wind/plant/(phenix-injects/wind-test-harness|simulation-replay/manager/wind_data_final)/'
 priority = "fix-whitespace"
 
 [[repos.hooks]]
@@ -553,7 +545,6 @@ types_or = [
     "yaml",
     "shell",
 ]
-exclude = '^renewables/wind/plant/(phenix-injects/wind-test-harness|simulation-replay/docs)/'
 priority = "fix-eof"
 
 [[repos.hooks]]
@@ -566,7 +557,6 @@ priority = "check"
 
 [[repos.hooks]]
 id = "check-json"
-exclude = '^renewables/wind/plant/simulation-replay/manager/wind_data_final/'
 priority = "check"
 
 [[repos.hooks]]
@@ -580,7 +570,6 @@ priority = "check"
 [[repos.hooks]]
 id = "check-executables-have-shebangs"
 exclude = { glob = [
-    "renewables/wind/plant/phenix-images/workstation/drivers/**",
     "**/*.ps1",
     "**/*.bat",
 ] }
@@ -588,7 +577,7 @@ priority = "check"
 
 [[repos.hooks]]
 id = "check-shebang-scripts-are-executable"
-exclude = '(?:^renewables/wind/plant/phenix-injects/wind-test-harness/|\.mako$)'
+exclude = '\.mako$'
 priority = "check"
 
 [[repos.hooks]]
@@ -602,7 +591,6 @@ priority = "check"
 [[repos.hooks]]
 id = "mixed-line-ending"
 args = ["--fix=no"]
-exclude = '^renewables/wind/plant/phenix-images/workstation/drivers/'
 priority = "check"
 
 [[repos.hooks]]
@@ -621,7 +609,7 @@ priority = "check"
 id = "require-pattern"
 name = "phenix configs declare apiVersion"
 args = ['^apiVersion: phenix\.sandia\.gov/v\d+$']
-files = '^cherrymountain-brewery/(phenix[^/]*\.ya?ml|phenix-configs/.+\.ya?ml|phenix-images/.+\.ya?ml)$'
+files = '^(phenix[^/]*\.ya?ml|phenix-configs/.+\.ya?ml|phenix-images/.+\.ya?ml)$'
 priority = "check"
 
 [[repos.hooks]]

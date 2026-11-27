@@ -16,7 +16,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="Check the topology, scenario, and workflow against the "
         "DESIGN.md IP plan (10.2) and conduit matrix (10.3)."
     )
-    ap.add_argument("--root", type=Path, default=ROOT, help="cherrymountain-brewery/")
+    ap.add_argument("--root", type=Path, default=ROOT, help="the repository root")
     ap.add_argument(
         "--variant",
         choices=["full", "lite", "ci", "all"],

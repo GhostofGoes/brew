@@ -37,7 +37,7 @@ check them as they are injected. Values reach them through rendered
 ## Build the phenix image
 
 ```shell
-docker build -t cherrymountain-phenix cherrymountain-brewery/apps
+docker build -t cherrymountain-phenix apps
 ```
 
 By default the image is `FROM ghcr.io/sandialabs/sceptre-phenix/phenix:main`,
@@ -49,7 +49,7 @@ Build that image first, then name it with the `PHENIX_IMAGE` build argument
 
 ```shell
 docker build --build-arg PHENIX_IMAGE=phenix:cherrymountain \
-  -t cherrymountain-phenix cherrymountain-brewery/apps
+  -t cherrymountain-phenix apps
 ```
 
 [USER_GUIDE.md](../USER_GUIDE.md) has the whole sequence. The package needs
@@ -63,8 +63,8 @@ Python 3.12, with phenix-apps installed from a checkout (it is not on PyPI):
 ```shell
 python3.12 -m venv .venv && . .venv/bin/activate
 pip install /path/to/sceptre-phenix-apps/src/python
-pip install -e 'cherrymountain-brewery/apps[test,dev]'
-cd cherrymountain-brewery/apps
+pip install -e 'apps[test,dev]'
+cd apps
 python -m pytest
 ruff check . && ruff format --check . && mypy
 ```

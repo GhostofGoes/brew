@@ -29,7 +29,8 @@ DNP3 nodes (rtu-der, utility-derms) per DESIGN §12.3.
 5. Modbus sanity (optional): the single-device example (`Procfile.single`)
    and `mbpoll` against it. Not run.
 6. If steps 3 or 4 fail on noble, repeat on Ubuntu 20.04 (focal) to confirm
-   the fallback, using `renewables/wind/turbine/phenix-images/ot-sim.yml` as
+   the fallback, using `renewables/wind/turbine/phenix-images/ot-sim.yml` of
+   sceptre-phenix-topologies as
    the image recipe template. Not needed: they passed.
 
 ## Pass / fail

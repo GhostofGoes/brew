@@ -221,7 +221,7 @@ it.
 FUXA's script API and a simulator of plc-brewhouse and the cellar's status:
 
 ```shell
-python3 -m pytest fuxa/tests         # from cherrymountain-brewery/
+python3 -m pytest fuxa/tests         # from the repository root
 ```
 
 `test_batch_engine.py` runs 25 scenarios (an unattended brew, a double brew day,

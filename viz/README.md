@@ -95,7 +95,7 @@ server.
 ## Run it
 
 ```shell
-cd cherrymountain-brewery/viz
+cd viz
 python3 -m venv .venv && .venv/bin/pip install -e '.[local]' -e ../sim
 .venv/bin/python -m cherrymountain_viz --source local \
     --helics ../plant/generated/full/helics.json --scenario co2-attack --speed 5
