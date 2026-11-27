@@ -1,0 +1,79 @@
+name: CI
+
+# Every check is a prek hook (prek.toml), and the hooks run in the dev container
+# (.devcontainer/), the same image as `make container-lint`. The hooks are split
+# into two jobs so that a lint finding and a failed test show up apart: a hook
+# whose id is `cm-<name>-tests` is a test suite, and every other hook is lint.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+# A newer push supersedes the run in progress for the same pull request.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Every *.zip is in Git LFS, and sync.py --check reads the committed
+          # OpenPLC program ZIPs.
+          lfs: true
+      # run.sh pulls the dev container image from GHCR, or builds it when the
+      # Dockerfile has changed. The login lets it pull while the package is
+      # private.
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate prek config
+        run: .devcontainer/run.sh prek validate-config prek.toml
+      - name: Run the lint hooks
+        # The branch check protects local protected branches, but must not fail
+        # after code lands on the main branch.
+        env:
+          PREK_SKIP: ${{ (github.ref == 'refs/heads/main') && 'no-commit-to-branch' || '' }}
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(grep -oP '^id = "\Kcm-[^"]*-tests(?=")' prek.toml)
+          .devcontainer/run.sh prek run --all-files --show-diff-on-failure "${tests[@]/#/--skip=}"
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The tests of the app, the simulation, and sync.py read the OpenPLC
+          # program ZIPs, which are in Git LFS.
+          lfs: true
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run the test hooks
+        run: |
+          set -euo pipefail
+          mapfile -t tests < <(grep -oP '^id = "\Kcm-[^"]*-tests(?=")' prek.toml)
+          test "${#tests[@]}" -gt 0
+          .devcontainer/run.sh prek run --all-files "${tests[@]}"
