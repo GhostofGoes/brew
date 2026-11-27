@@ -24,3 +24,10 @@ updates:
       default-days: 30
     commit-message:
       prefix: chore(devcontainer)
+    # The base image moves to a newer Ubuntu release by hand: the versions of
+    # the apt packages (Node, Python, systemd) come from the release.
+    ignore:
+      - dependency-name: ubuntu
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
