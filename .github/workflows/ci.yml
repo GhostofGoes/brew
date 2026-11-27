@@ -44,13 +44,15 @@ jobs:
         run: .devcontainer/run.sh prek validate-config prek.toml
       - name: Run the lint hooks
         # The branch check protects local protected branches, but must not fail
-        # after code lands on the main branch.
-        env:
-          PREK_SKIP: ${{ (github.ref == 'refs/heads/main') && 'no-commit-to-branch' || '' }}
+        # after code lands on the main branch. It is skipped with --skip: prek
+        # does not read PREK_SKIP when the command line has a --skip.
         run: |
           set -euo pipefail
-          mapfile -t tests < <(grep -oP '^id = "\Kcm-[^"]*-tests(?=")' prek.toml)
-          .devcontainer/run.sh prek run --all-files --show-diff-on-failure "${tests[@]/#/--skip=}"
+          mapfile -t skip < <(grep -oP '^id = "\Kcm-[^"]*-tests(?=")' prek.toml)
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+              skip+=(no-commit-to-branch)
+          fi
+          .devcontainer/run.sh prek run --all-files --show-diff-on-failure "${skip[@]/#/--skip=}"
 
   test:
     name: Test
