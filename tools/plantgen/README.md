@@ -44,8 +44,8 @@ keeps only a part of the plant, as `ci` does.
 ([PLANS.md §4.1](../../docs/multisite/PLANS.md#41-what-each-site-is)). A site
 is the plant of `plant.yaml` with parts left out and with its networks moved.
 For each site, the file gives the areas and the hosts that the site does not
-have. It also gives where the hosts of each VLAN go, the uplinks, and the time
-source.
+have. It also gives where the hosts of each VLAN go, the uplinks, the time
+source, and the staff accounts of the site's own jump host (`staff`).
 
 plantgen reads the file on each run (`plantgen/sites.py`) and stops when an
 entry does not fit.
@@ -54,6 +54,7 @@ entry does not fit.
 |---|---|
 | Names | An area, a host, a VLAN, or a PLC that `plant.yaml` does not have. A time source or a gateway that the site left out. A site code that is the name of a variant |
 | Addresses | Two hosts with one address after two VLANs merge. The message tells you to give a move a `shift` |
+| Staff accounts | An account that the site has two times. Staff accounts at a site without `dmz-jump` or `ews`, or at a site with the `remote` module, where the jump host is the vendor's |
 | `wan/wan.yaml` | Uplinks that are not the links of the site's edge there, in the same order. A routed network outside the blocks of the site. A different subnet for the LAN that `wan.yaml` puts a host on |
 
 A test makes sure that the file equals the profiles that the
@@ -67,13 +68,35 @@ files, `variant` holds the code of the site.
 
 | Site | Hosts | PLCs | Tags | Files | Copies of injected files |
 |---|---:|---:|---:|---:|---:|
-| `fr` | 39 | 5 | 516 | 29 | 8 |
+| `fr` | 39 | 5 | 516 | 29 | 10 |
 | `ep` | 34 | 5 | 516 | 29 | 8 |
 | `cs` | 25 | 4 | 458 | 25 | 6 |
 | `fc` | 18 | 3 | 365 | 22 | 1 |
 
 The copies are under `injects/` in the directory of the site
 ([The injected files of a site](#the-injected-files-of-a-site)).
+
+Two things differ from the files of a variant:
+
+- A site has no `phenix/helics.yaml`. The fleet has a HELICS broker for each
+  site, and the `helics` app of phenix has one root broker for an experiment.
+  The `cherrymountain` app starts the broker of a site. For this,
+  `phenix/cherrymountain.yaml` of a site has `site`, the code of the site,
+  next to `variant`.
+- A site has `bacnet-writers.json`. The file lists the hosts that can write a
+  BACnet object at the site, each with its address and the reason. A write
+  from a different host is not expected, and the detection content gives an
+  alert for it.
+
+Who can write BACnet follows the hosts of the site, not its code:
+
+| Site | Writers |
+|---|---|
+| `fr`, `ep`, `cs` | The FUXA host of the building (`bas-fuxa`) and the engineering workstation |
+| `fc` | `fc-scada-fuxa`. The site has no `bas-fuxa`, so its one SCADA host operates the building and has `write: true` on those sources |
+
+The same rule on the `full` variant gives the two addresses in the
+hand-written Suricata rules and Zeek script. A test compares them.
 
 `plantgen/fleet.py` builds a plant description of the site from `plant.yaml`
 and the entry of the site. The description has one variant, and the name of
@@ -165,9 +188,12 @@ host or an address follow the plant description of the site.
 - The uplinks of the edge are its first interfaces. They have the VLAN alias,
   the address, and the mask that `topology-wan.yml` gives the same router. A
   test compares the two files.
-- The sensor is a stand-in. It has the image name `cm-sensor.qc2`, 4 vCPUs,
-  16 GB, and host number 60, as in the site-profiles spike. No such image
-  exists.
+- The sensor has the image `cm-sensor.qc2`, 4 vCPUs, 16 GB, and host number
+  60, as in the site-profiles spike. It injects the first-boot files of
+  `phenix-injects/sensor/`, the capture files of `malcolm` that a sensor also
+  uses, and its own `cm-sensor.env`. It does not inject the
+  Suricata rules and the Zeek script of `malcolm`, because they name Front
+  Range hosts by address. The files go into the first partition of the image.
 - `fr` gets the interfaces, the labels, and the routes that the three modules
   have today. A test compares them, apart from the WAN side of the edge.
 - Across the four files, no hostname and no address occurs twice. Each VLAN
@@ -234,8 +260,30 @@ reason. plantgen stops at an injection that has no decision.
 | All other files | Each site whose node injects them today | They hold no account and no part of the head office |
 
 `ep` has its own jump host. That host runs the same Guacamole and gets no
-account of the vendor. The accounts of the company for that host are not
-designed yet, and the header of `topology-site-ep.yml` says so.
+account of the vendor. It has a named account for each entry of `staff` in
+`plant/sites.yaml`: `corp-controls`, the controls engineer of the head office,
+and `ep-maint`, the maintenance lead of the site. The header of
+`topology-site-ep.yml` names them.
+
+The files of the staff accounts are not in the hand-written modules, so
+`SCOPES` has no entry for them. plantgen adds them to the two nodes of a site
+that has `staff` (`injects.staff_injections`):
+
+| Node | File | What it does |
+|---|---|---|
+| `dmz-jump` | `guacamole/cm_staff_sql.py` | `cm-guacamole-start` runs it. Each account gets a Guacamole user with its own TOTP key, and its own copies of the `ews-rdp` and `ews-ssh` connections, with the recording |
+| `ews` | `ews/71-ews-staff.sh` | Each account gets a local account in the group `cm-engineers` |
+| Both | `fleet/<code>/guacamole/staff.env`, mode 0600 | The roster: the accounts, their passwords, and their TOTP keys |
+
+- The vendor's script and the staff's script use one library,
+  `guacamole/cm_guac_accounts.py`, which each jump host gets. Thus a person of
+  the staff gets what a technician of the vendor gets.
+- The passwords and the keys of the committed roster are placeholders.
+  plantgen makes them from the site's code and the account's name, so they do
+  not change between runs. The `cherrymountain` app makes new ones for each
+  experiment (`staffAccounts` in the app block of the site).
+- An account name is a role and not a person. It does not start with
+  `ridgeline-`, which is the prefix that the Wazuh rules for the vendor match.
 
 `plantgen/injects.py` also renders the copies. A copy is the hand-written file
 with a small number of lines set again from the plant description of the
@@ -250,7 +298,10 @@ stops and names the line.
 | `ot-svc/dnsmasq-plant.conf` | The address that the name server listens on |
 | `ot-svc/plant.hosts` | The whole file: each address of each node of the site |
 | `ot-svc/60-ot-svc.sh` | The networks of the hosts that take their time from `ot-svc`, and the network of the sensor |
+| `sensor/cm-sensor.env` | The name and the address of the sensor. The address of `malcolm` stays: the fleet has one Malcolm, at the head office. Only a site with a sensor has this copy |
 | `guacamole/cm-guacamole-start`, `guacamole/nginx.conf` | The name and the address of the jump host in its certificate, and the name that its web server answers to |
+| `guacamole/staff.env` | The number of staff accounts, and the lines of each account. Only a site with `staff` has this copy, which is `ep`. The hand-written file lists no account, and no node injects it |
+| `malcolm/cherrymountain.rules`, `malcolm/zeek/cherrymountain.zeek` | The addresses that can write BACnet, from `bacnet-writers.json`. Only a site with the SOC injects these files, which is `fr` |
 
 - plantgen writes a copy only when a node of the site injects the file. `fc`
   has one router and no `ot-svc`, so it has one copy.

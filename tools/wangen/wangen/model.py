@@ -14,7 +14,7 @@ from typing import Any, ClassVar, Final
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-#: cherrymountain-brewery/wan/wan.yaml
+#: wan/wan.yaml
 DEFAULT_PATH: Final[Path] = Path(__file__).resolve().parents[3] / "wan" / "wan.yaml"
 
 # How a site ties each tunnel to one uplink. The generators support the mark

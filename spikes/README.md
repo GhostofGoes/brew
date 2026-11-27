@@ -8,7 +8,7 @@ otsim-noble, and bacnet kits ran in Docker containers on a host with no KVM.
 The VM spikes (malcolm, vyos-ipsec, autotunnel, serial, bbmd) run in CI on
 GitHub-hosted runners with KVM. The Malcolm job and the netns BBMD jobs need
 Docker only, and the BBMD jobs run FUXA in Docker. The workflow is
-[`cherrymountain-spikes.yml`](../../.github/workflows/cherrymountain-spikes.yml).
+[`spikes.yml`](../.github/workflows/spikes.yml).
 It has one job for each spike. Each job uses the phenix and minimega setup of
 the E2E tests of the phenix fork.
 

@@ -97,8 +97,8 @@ def test_a_missing_or_unknown_block_is_named(fleet: Path) -> None:
     with pytest.raises(ValueError, match=r"a site's scenario has no place for \['wireguard'\]"):
         sync.site_scenario(site)
     (site.phenix_dir / "wireguard.yaml").unlink()
-    (site.phenix_dir / "helics.yaml").unlink()
-    with pytest.raises(ValueError, match=r"has no block for \['helics'\]; run plantgen"):
+    (site.phenix_dir / "ntp.yaml").unlink()
+    with pytest.raises(ValueError, match=r"has no block for \['ntp'\]; run plantgen"):
         sync.site_scenario(site)
 
 
@@ -139,7 +139,7 @@ def test_a_copy_without_a_source_is_left_over(fleet: Path) -> None:
     assert len(found) == 1 and "phenix-injects/fleet/fc/ot-svc/plant.hosts is left over" in found[0]
     assert problems(site, check=False) == []
     assert not extra.parent.exists()
-    assert sorted(p.name for p in site.injects.iterdir()) == ["vrouter"]
+    assert sorted(p.name for p in site.injects.iterdir()) == ["sensor", "vrouter"]
 
 
 def test_what_is_left_of_a_site_that_sites_yaml_lost(fleet: Path) -> None:

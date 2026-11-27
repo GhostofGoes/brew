@@ -1,10 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
-  "name": "sceptre-phenix-topologies",
+  "name": "brew",
   "build": {
     "dockerfile": "Dockerfile",
     "cacheFrom": [
-      "ghcr.io/sandialabs/sceptre-phenix-topologies/devcontainer:latest"
+      "ghcr.io/ghostofgoes/brew/devcontainer:latest"
     ]
   },
   "features": {
@@ -17,7 +17,7 @@
   "remoteUser": "ubuntu",
   "updateRemoteUserUID": true,
   "mounts": [
-    "source=sceptre-phenix-topologies-cache-devcontainer,target=/cache,type=volume"
+    "source=brew-cache-devcontainer,target=/cache,type=volume"
   ],
   "postCreateCommand": "prek install-hooks",
   "customizations": {

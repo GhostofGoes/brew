@@ -7,7 +7,7 @@ Both live in sceptre-phenix-apps (``phenix_apps.apps.cherrymountain`` and
 installed package. They read plant.yaml, the plantgen output, the FUXA builder,
 the injects, and the program ZIPs (Git LFS) from a topology directory, which
 ``CHERRYMOUNTAIN_TOPOLOGY_DIR`` names. This sets it to the
-``cherrymountain-brewery`` directory this script is in, so the tests check the
+repository this script is in, so the tests check the
 app against the files of this commit.
 
 Extra arguments go to pytest, for example ``-k mirror``.
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-#: cherrymountain-brewery/
+#: The repository root.
 ROOT: Path = Path(__file__).resolve().parents[2]
 PACKAGES: tuple[str, ...] = (
     "phenix_apps.apps.cherrymountain",

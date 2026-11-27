@@ -29,6 +29,9 @@ What each field of a node becomes:
   injection: as they are.
 - `injections`: the injections that the site may have (`injects.SCOPES`).
   The files of the vendor's access and of the SOC stay at the head office.
+  The jump host and the workstation of a site with staff accounts
+  (plant/sites.yaml, `staff`) get the files of those accounts
+  (`injects.staff_injections`).
 - The `src` of an injection: the site's own copy of the file, when the file
   holds a name or an address of the plant (`injects.site_source`). Any other
   file is the one that every site injects.
@@ -58,13 +61,17 @@ TUNNEL_STEP: Final[int] = 100
 #: The VLAN whose hosts a site with one firewall moves to its plant network.
 #: The sensor of such a site is on that network (PLANS.md, section 4.6).
 OPS_VLAN: Final[str] = "OPS"
-#: The network sensor. No image exists yet: the name, the size (decision D19:
-#: 4 vCPUs, 16 GB), and the host number are those of the site-profiles spike.
+#: The network sensor: the image `cm-sensor` (Malcolm's sensor profile), with the
+#: files of phenix-injects/sensor (`injects.sensor_injections`). The name, the
+#: size (decision D19: 4 vCPUs, 16 GB), and the host number are those of the
+#: site-profiles spike. The injected files go to the image's first partition,
+#: as on malcolm.
 SENSOR_NAME: Final[str] = fleet.SENSOR_NAME
 SENSOR_IMAGE: Final[str] = "cm-sensor.qc2"
 SENSOR_VCPUS: Final[int] = 4
 SENSOR_MEMORY_MB: Final[int] = 16384
 SENSOR_HOST_NUMBER: Final[int] = 60
+SENSOR_INJECT_PARTITION: Final[int] = 1
 
 #: The name of a site's file under phenix-configs.
 FILE_NAME: Final[str] = "topology-site-{code}.yml"
@@ -88,11 +95,21 @@ HEADER: Final[str] = """\
 #   generator writes (tools/wangen).
 # - The conduits between sites, with their rules.
 """
-#: Added to the header of a site that has a jump host and not the vendor's access.
+#: Added to the header of a site that has a jump host, and neither the vendor's
+#: access nor staff accounts.
 JUMP_HOST_NOTE: Final[str] = """\
 # - The accounts of the site's own jump host. The vendor's accounts are not
 #   injected here: the vendor reaches the head office and no other site. The
-#   company's own accounts are still to be designed.
+#   site has no staff accounts (plant/sites.yaml, `staff`).
+"""
+#: Added to the header of a site with staff accounts.
+STAFF_NOTE: Final[str] = """\
+#
+# The site's own jump host has a named account for each of the company's staff
+# in plant/sites.yaml (`staff`):
+#   {accounts}
+# The vendor's accounts are not injected here: the vendor reaches the head
+# office and no other site.
 """
 JUMP_HOST: Final[str] = "dmz-jump"
 
@@ -131,7 +148,10 @@ def dump(site: SiteSpec, config: dict[str, Any]) -> str:
     body = yaml.safe_dump(config, sort_keys=True, default_flow_style=False, width=1000)
     header = HEADER.format(code=site.code, title=site.title)
     names = {node["general"]["hostname"] for node in config["spec"]["nodes"]}
-    if site.host(JUMP_HOST) in names and injects.REMOTE not in site.modules:
+    if site.staff:
+        accounts = ", ".join(person.account for person in site.staff)
+        header += STAFF_NOTE.format(accounts=accounts)
+    elif site.host(JUMP_HOST) in names and injects.REMOTE not in site.modules:
         header += JUMP_HOST_NOTE
     return header + body
 
@@ -183,11 +203,12 @@ def _node(
         for injection in node.get("injections", [])
         if injects.at_site(site, injection["src"])
     ]
+    for injection in kept:
+        injection["src"] = injects.site_source(site, injection["src"])
+    kept += injects.staff_injections(site, plain)
     node.pop("injections", None)
     if kept:
         node["injections"] = kept
-    for injection in kept:
-        injection["src"] = injects.site_source(site, injection["src"])
     waits = [
         {**wait, "hostname": site.host(wait["hostname"])}
         for wait in node.get("delay", {}).get("c2", [])
@@ -377,10 +398,11 @@ def _tunnel(site: SiteSpec, host: str, entry: str) -> str:
 def sensor_node(site: SiteSpec, doc: PlantFile) -> dict[str, Any]:
     """The site's network sensor (PLANS.md, sections 4.1 and 4.6).
 
-    It is a stand-in until a sensor image exists. At a site with two firewalls
-    it is in the SOC zone, which has no other host there. At a site with one
-    firewall it is in the plant network, where the OPS hosts are. The mirror
-    app adds its mirror interface.
+    At a site with two firewalls it is in the SOC zone, which has no other
+    host there. At a site with one firewall it is in the plant network, where
+    the OPS hosts are. The mirror app adds its mirror interface. The injected
+    files configure Malcolm's sensor profile at the first boot
+    (`injects.sensor_injections`).
     """
     vlan = site.vlan(fleet.SENSOR_VLAN)
     if vlan not in doc.networks:
@@ -415,14 +437,19 @@ def sensor_node(site: SiteSpec, doc: PlantFile) -> dict[str, Any]:
         "type": "VirtualMachine",
         "general": {
             "hostname": name,
-            "description": "Network sensor (a stand-in: no sensor image exists yet)",
+            "description": "Network sensor: Zeek, Suricata, and Arkime on the "
+            "site's mirror, sent to Malcolm at the head office (mirror NIC added "
+            "by the mirror app)",
         },
         "hardware": {
             "os_type": "linux",
             "vcpus": SENSOR_VCPUS,
             "memory": SENSOR_MEMORY_MB,
-            "drives": [{"image": SENSOR_IMAGE}],
+            "drives": [
+                {"image": SENSOR_IMAGE, "inject_partition": SENSOR_INJECT_PARTITION}
+            ],
         },
+        "injections": injects.sensor_injections(site),
         "labels": {"zone": _zone(site, vlan), "site": site.code},
         "network": {"interfaces": [interface]},
     }

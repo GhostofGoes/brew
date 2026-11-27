@@ -9,7 +9,7 @@ the frame before it takes the picture. Nothing is drawn by this script.
 
 Needs the repo's viz and sim packages importable (pydantic, websockets,
 opendssdirect), and Node with the ``playwright`` package. The repository root
-is taken from CM_ROOT (the ``cherrymountain-brewery`` directory), else from
+is taken from CM_ROOT (the repository root), else from
 this file's place in the tree.
 """
 

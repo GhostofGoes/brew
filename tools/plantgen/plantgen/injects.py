@@ -17,6 +17,16 @@ must be there exactly once: when the hand-written file changes its shape, the
 generator stops with the name of the line. `ot-svc/plant.hosts` has no line to
 keep, so it is written whole.
 
+One part is not in the hand-written modules: the accounts of the company's own
+staff at a site's jump host (`SiteSpec.staff`). `staff_injections` gives the
+two nodes their files, and the roster `guacamole/staff.env` is a copy with the
+site's accounts.
+
+The other such part is the site's network sensor, a node that plantgen makes
+(`topology.sensor_node`). `sensor_injections` gives it the first-boot files of
+phenix-injects/sensor, the capture scripts of `malcolm`, and the site's copy
+of `sensor/cm-sensor.env`, which names the sensor.
+
 plantgen writes the copies to `plant/generated/fleet/<code>/injects/`, next to
 the site's other generated files. `sync.py` copies them to
 `phenix-injects/fleet/<code>/`, because phenix injects only what is under
@@ -25,7 +35,10 @@ phenix-injects. The site's topology file names the copy there.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import ipaddress
+import string
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,7 +46,8 @@ from typing import Any, Final, NamedTuple
 
 from plantgen.checks import routed
 from plantgen.model import Plant, PlantError
-from plantgen.sites import EDGE, SiteSpec
+from plantgen.render import bacnet_writers
+from plantgen.sites import EDGE, EWS, JUMP, SiteSpec
 
 #: How a topology names a file under phenix-injects.
 PREFIX: Final[str] = "/phenix/injects/${BRANCH_NAME}/"
@@ -49,6 +63,128 @@ BACNET_PORT: Final[int] = 47808
 #: the building network.
 OPS_BBMD: Final[str] = "ot-svc"
 BAS_BBMD: Final[str] = "bas-bbmd"
+
+#: The roster of a site's staff accounts, and the two scripts that read it.
+STAFF_ENV: Final[str] = "guacamole/staff.env"
+STAFF_SQL: Final[str] = "guacamole/cm_staff_sql.py"
+STAFF_HOOK: Final[str] = "ews/71-ews-staff.sh"
+#: Where the two nodes have the roster.
+STAFF_TARGET: Final[str] = "/etc/cherrymountain/staff.env"
+
+#: The settings of a site's sensor: its name, its address, and Malcolm's.
+SENSOR_ENV: Final[str] = "sensor/cm-sensor.env"
+#: The files of a site's sensor: (path under phenix-injects, where the sensor
+#: has it, its mode, what it is). The image is cm-sensor, which has the paths
+#: of cm-malcolm. The baseline detections of malcolm (`cherrymountain.rules`,
+#: `zeek/cherrymountain.zeek`) are not here: they name the hosts of the Front
+#: Range site by address, and a site's copy moves only the BACnet writers.
+SENSOR_FILES: Final[tuple[tuple[str, str, str, str], ...]] = (
+    (
+        "malcolm/99-zz-capture-flow.sh",
+        "/etc/phenix/startup/99-zz-capture-flow.sh",
+        "0755",
+        "start the unit that adds the OpenFlow capture flow after the mirror app's "
+        "OVS setup",
+    ),
+    (
+        SENSOR_ENV,
+        "/etc/default/cm-sensor",
+        "0644",
+        "the sensor's name, its address, and the address of Malcolm",
+    ),
+    (
+        "sensor/malcolm-config-sensor.yaml",
+        "/opt/cherrymountain/malcolm/malcolm-config-sensor.yaml",
+        "0644",
+        "settings of the sensor profile for Malcolm's configurator",
+    ),
+    (
+        "malcolm/cm-suricata.yaml",
+        "/opt/cherrymountain/malcolm/cm-suricata.yaml",
+        "0644",
+        "Suricata flow settings for mirrored traffic (no VLAN in the flow key, "
+        "one-sided streams)",
+    ),
+    (
+        "sensor/cm-sensor-acl",
+        "/usr/local/sbin/cm-sensor-acl",
+        "0755",
+        "host firewall: Arkime's viewer for Malcolm only, GRE only on the mirror "
+        "interface",
+    ),
+    (
+        "sensor/cm-sensor-provision",
+        "/usr/local/sbin/cm-sensor-provision",
+        "0755",
+        "sensor first-boot configuration",
+    ),
+    (
+        "sensor/cm-sensor-start",
+        "/usr/local/sbin/cm-sensor-start",
+        "0755",
+        "start the sensor's services",
+    ),
+    (
+        "sensor/cm-sensor-stop",
+        "/usr/local/sbin/cm-sensor-stop",
+        "0755",
+        "stop the sensor's services",
+    ),
+    (
+        "sensor/cm-sensor-health",
+        "/usr/local/sbin/cm-sensor-health",
+        "0755",
+        "sensor health check for SoH and SCORCH",
+    ),
+    (
+        "malcolm/cm-malcolm-capture",
+        "/usr/local/sbin/cm-malcolm-capture",
+        "0755",
+        "OpenFlow flow and port setup for the mirror feed",
+    ),
+    (
+        "docker/cm-load-images",
+        "/usr/local/sbin/cm-load-images",
+        "0755",
+        "load the pre-pulled container images into Docker",
+    ),
+    (
+        "docker/cm-load-images.service",
+        "/etc/systemd/system/cm-load-images.service",
+        "0644",
+        "image loading unit",
+    ),
+    (
+        "sensor/cm-sensor-acl.service",
+        "/etc/systemd/system/cm-sensor-acl.service",
+        "0644",
+        "host firewall unit",
+    ),
+    (
+        "sensor/cm-sensor-provision.service",
+        "/etc/systemd/system/cm-sensor-provision.service",
+        "0644",
+        "sensor first-boot configuration unit",
+    ),
+    (
+        "sensor/cm-sensor.service",
+        "/etc/systemd/system/cm-sensor.service",
+        "0644",
+        "sensor unit",
+    ),
+    (
+        "malcolm/cm-malcolm-capture.service",
+        "/etc/systemd/system/cm-malcolm-capture.service",
+        "0644",
+        "capture port unit",
+    ),
+    (
+        "sensor/66-sensor.sh",
+        "/etc/phenix/startup/66-sensor.sh",
+        "0755",
+        "load the images, close the host firewall, configure, and start the sensor",
+    ),
+)
 
 NOTE: Final[str] = (
     "# Generated by plantgen for the site {code} from phenix-injects/{path}. "
@@ -445,15 +581,167 @@ def _jump_server_name(context: Context) -> str:
     )
 
 
+def _writer_addresses(context: Context) -> list[str]:
+    """The addresses that may write a BACnet object at the site
+    (`render.bacnet_writers`): the detection content alerts on any other."""
+    writers = bacnet_writers(context.plant)
+    if not writers:
+        raise PlantError(f"{context.path}: the site has no host that writes BACnet")
+    return [writer["address"] for writer in writers]
+
+
+def _the_line_with(context: Context, words: str) -> str:
+    """The one line of the hand-written file that holds `words`."""
+    hits = [line for line in context.text.splitlines() if words in line]
+    if len(hits) != 1:
+        raise PlantError(
+            f"phenix-injects/{context.path}: {len(hits)} lines hold {words!r}, and "
+            "the site's copy sets exactly one"
+        )
+    return hits[0]
+
+
+def _suricata_rules(context: Context) -> str:
+    """malcolm/cherrymountain.rules: who may write BACnet (sids 9000113 and
+    9000114). The rule's source is every address but the writers."""
+    writers = ",".join(_writer_addresses(context))
+    lines: list[Line] = []
+    for service in ("WriteProperty", "WritePropertyMultiple"):
+        old = _the_line_with(context, f'(msg:"CM BACnet {service} from a host other')
+        head, sep, rest = old.partition("] any -> any ")
+        if not head.startswith("alert udp ![") or not sep:
+            raise PlantError(
+                f"phenix-injects/{context.path}: the {service} rule does not start "
+                "with `alert udp ![<writers>] any -> any`"
+            )
+        lines.append(Line(old, f"alert udp ![{writers}{sep}{rest}"))
+    return edit(context, lines)
+
+
+def _zeek_script(context: Context) -> str:
+    """malcolm/zeek/cherrymountain.zeek: who may write BACnet
+    (`BACnet_Write_Unexpected`)."""
+    writers = ", ".join(_writer_addresses(context))
+    start = "const bacnet_writers: set[addr] = "
+    return edit(context, [Line(start, f"{start}{{ {writers} }} &redef;")])
+
+
+def _placeholder(site: SiteSpec, account: str, use: str) -> bytes:
+    """20 bytes for one value of a staff account, the same at every run."""
+    words = f"cherrymountain staff {site.code} {account} {use}"
+    return hashlib.sha256(words.encode()).digest()[:20]
+
+
+def _placeholder_password(site: SiteSpec, account: str, use: str) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(
+        alphabet[byte % len(alphabet)] for byte in _placeholder(site, account, use)
+    )
+
+
+def _staff_roster(context: Context) -> str:
+    """guacamole/staff.env: the accounts of the site's staff.
+
+    The passwords and the TOTP keys are placeholders that come from the site
+    and the account, so that the copy does not change from run to run. The
+    cherrymountain app makes new ones for each experiment.
+    """
+    site = context.site
+    lines = [f"STAFF_COUNT={len(site.staff)}"]
+    for number, person in enumerate(site.staff, start=1):
+        key = base64.b32encode(_placeholder(site, person.account, "totp")).decode()
+        lines += [
+            f"# {person.title}",
+            f"STAFF{number}_USER={person.account}",
+            f"STAFF{number}_GUAC_PASSWORD="
+            + _placeholder_password(site, person.account, "guacamole"),
+            f"STAFF{number}_TOTP_SECRET={key}",
+            f"STAFF{number}_EWS_PASSWORD="
+            + _placeholder_password(site, person.account, "ews"),
+        ]
+    return edit(context, [Line("STAFF_COUNT=", "\n".join(lines))])
+
+
+def staff_injections(site: SiteSpec, plain: str) -> list[dict[str, str]]:
+    """The injections of the site's staff accounts at the host `plain`.
+
+    The jump host gets the script that creates the Guacamole accounts, the
+    workstation gets the one that creates the local accounts, and both get the
+    site's roster. No other host, and no site without staff, gets any.
+    """
+    scripts: dict[str, dict[str, str]] = {
+        JUMP: {
+            "description": "SQL for the named accounts of the company's staff",
+            "dst": "/usr/local/lib/cm-guacamole/cm_staff_sql.py",
+            "permissions": "0644",
+            "src": f"{PREFIX}{STAFF_SQL}",
+        },
+        EWS: {
+            "description": "create the local accounts of the company's staff",
+            "dst": "/etc/phenix/startup/71-ews-staff.sh",
+            "permissions": "0755",
+            "src": f"{PREFIX}{STAFF_HOOK}",
+        },
+    }
+    if not site.staff or plain not in scripts:
+        return []
+    roster = {
+        "description": "range-only staff accounts (Guacamole account, TOTP seed, "
+        "EWS account)",
+        "dst": STAFF_TARGET,
+        "permissions": "0600",
+        "src": f"{PREFIX}{SITE_DIRECTORY.format(code=site.code)}/{STAFF_ENV}",
+    }
+    return [scripts[plain], roster]
+
+
+def _sensor_settings(context: Context) -> str:
+    """sensor/cm-sensor.env: the sensor's name and its address.
+
+    The address of Malcolm stays as the hand-written file has it: the fleet has
+    one Malcolm, at the head office, and no site moves it.
+    """
+    name = context.target()
+    node = next(n for n in context.nodes if n["general"]["hostname"] == name)
+    address: str = node["network"]["interfaces"][0]["address"]
+    return edit(
+        context,
+        [
+            Line("CM_SENSOR_NAME=", f"CM_SENSOR_NAME={name}"),
+            Line("CM_SENSOR_ADDRESS=", f"CM_SENSOR_ADDRESS={address}"),
+        ],
+    )
+
+
+def sensor_injections(site: SiteSpec) -> list[dict[str, str]]:
+    """The injections of the site's sensor (`SENSOR_FILES`).
+
+    A file that holds a name or an address of the site is the site's copy.
+    """
+    return [
+        {
+            "description": description,
+            "dst": target,
+            "permissions": mode,
+            "src": site_source(site, f"{PREFIX}{path}"),
+        }
+        for path, target, mode, description in SENSOR_FILES
+    ]
+
+
 #: The files that a site has its own copy of, by their path under phenix-injects.
 RENDERERS: Final[dict[str, Callable[[Context], str]]] = {
     "bbmd/bas-bbmd.env": _bbmd_bas,
     "bbmd/ot-svc.env": _bbmd_ops,
     "guacamole/cm-guacamole-start": _jump_certificate,
     "guacamole/nginx.conf": _jump_server_name,
+    STAFF_ENV: _staff_roster,
+    "malcolm/cherrymountain.rules": _suricata_rules,
+    "malcolm/zeek/cherrymountain.zeek": _zeek_script,
     "ot-svc/60-ot-svc.sh": _time_hook,
     "ot-svc/dnsmasq-plant.conf": _resolver,
     "ot-svc/plant.hosts": _hosts_file,
+    SENSOR_ENV: _sensor_settings,
     "vrouter/cm-vyos-config.sh": _vyos_script,
 }
 

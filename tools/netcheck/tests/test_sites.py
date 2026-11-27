@@ -194,12 +194,17 @@ def test_the_counts_of_each_site(derived: dict[str, site.Site]) -> None:
     # `ep` has four more than its hosts of the Front Range: the sensor's time,
     # names (UDP and TCP), and syslog at ep-ot-svc.
     assert flows == {"fr": 143, "ep": 109, "cs": 38, "fc": 0}
+    # The rules of the conduits between two sites are among them
+    # (test_fleet_conduits.py): a sensor's two uploads at each firewall on the
+    # way out, and Malcolm's request for packets at each firewall behind an edge.
     assert rules == {
-        "fr": {"fr-fw-edge": 0, "fr-fw-ot": 87},
-        "ep": {"ep-fw-edge": 0, "ep-fw-ot": 86},
-        "cs": {"cs-fw-edge": 22},
-        "fc": {"fc-fw-edge": 0},
+        "fr": {"fr-fw-edge": 3, "fr-fw-ot": 96},
+        "ep": {"ep-fw-edge": 2, "ep-fw-ot": 89},
+        "cs": {"cs-fw-edge": 24},
+        "fc": {"fc-fw-edge": 2},
     }
+    between: dict[str, int] = {c: len(sitegen.fleet_rules(s)) for c, s in derived.items()}
+    assert between == {"fr": 12, "ep": 5, "cs": 2, "fc": 2}
 
 
 def test_every_site_flow_is_traced_both_ways() -> None:
@@ -433,11 +438,12 @@ def test_a_removed_rule_is_a_conduit_that_is_not_delivered(
 
 
 def test_the_pub_has_no_rule_to_remove_and_an_open_firewall_is_found(site_tree: Path) -> None:
-    """No conduit inside fc crosses its firewall, so its rulesets accept
-    nothing new. What the check must find there is a firewall that lets the
-    office through to the plant network."""
-    doc_rules: int = sum(sitegen.rule_counts(site.load("fc")).values())
-    assert doc_rules == 0
+    """No conduit inside fc crosses its firewall, so its rulesets accept only
+    what its sensor sends to Malcolm (`fleet`). What the check must find there
+    is a firewall that lets the office through to the plant network."""
+    derived: site.Site = site.load("fc")
+    doc_rules: int = sum(sitegen.rule_counts(derived).values())
+    assert doc_rules == len(sitegen.fleet_rules(derived)) == 2
 
     def edit(doc: dict[str, Any]) -> None:
         ruleset(doc, "fc-fw-edge", "FROM-FC-OFFICE")["default"] = "accept"
@@ -879,3 +885,38 @@ def test_the_totals_of_a_site_are_those_of_the_plan(site_tree: Path) -> None:
 
     edit_yaml(topology(site_tree, "fc"), edit)
     assert has(run(site_tree, "fc"), "fc/plan", "totals", "(19, 27, 57) differ from PLANS.md 4.1")
+
+
+# --- the app's site key, and the broker of a site -------------------------------
+
+
+def test_the_scenario_of_a_site_names_its_site_and_has_no_helics_app(site_tree: Path) -> None:
+    """The cherrymountain app starts the broker of a site when its metadata
+    names the site (decision K3a). The phenix helics app has one root broker
+    for an experiment, and it would start a second broker on the site's sim-ctl."""
+    for code in CODES:
+        doc: dict[str, Any] = m.read_yaml(ROOT / "phenix-configs" / sitegen.file_name(code))
+        names: list[str] = [app["name"] for app in doc["spec"]["apps"]]
+        assert "helics" not in names
+        assert _app(doc, "cherrymountain")["metadata"]["site"] == code
+
+    def no_site(doc: dict[str, Any]) -> None:
+        del _app(doc, "cherrymountain")["metadata"]["site"]
+        doc["spec"]["apps"].append(
+            {"name": "helics", "metadata": {"broker": {"root": "fc-sim-ctl|mgmt"}}}
+        )
+
+    edit_yaml(scenario(site_tree, "fc"), no_site)
+    found: list[str] = run(site_tree, "fc")
+    assert has(found, "fc/apps", "metadata.site is None, not 'fc'")
+    assert has(found, "fc/apps", "the scenario of a site has the helics app")
+
+    def another_site(doc: dict[str, Any]) -> None:
+        _app(doc, "cherrymountain")["metadata"]["site"] = "fc"
+
+    edit_yaml(scenario(site_tree, "ep"), another_site)
+    assert has(run(site_tree, "ep"), "ep/apps", "metadata.site is 'fc', not 'ep'")
+
+
+def test_a_variant_is_not_asked_for_a_site_key() -> None:
+    assert not [f for f in checks.run_variant("full") if "metadata.site" in f.message]

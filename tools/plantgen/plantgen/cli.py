@@ -18,7 +18,7 @@ from plantgen.model import Plant, PlantError, PlantFile, expand, load, load_file
 from plantgen.render import render_all
 from plantgen.sites import SiteSpec
 
-#: cherrymountain-brewery/ (this file is tools/plantgen/plantgen/cli.py).
+#: The repository root (this file is tools/plantgen/plantgen/cli.py).
 TOPOLOGY_DIR: Path = Path(__file__).resolve().parents[3]
 DEFAULT_PLANT: Path = TOPOLOGY_DIR / "plant" / "plant.yaml"
 

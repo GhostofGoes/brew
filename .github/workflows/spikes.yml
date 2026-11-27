@@ -6,18 +6,18 @@
 #
 # One job per spike. Evidence (result.json, summary.md, logs) goes to the
 # `evidence-<spike>` artifact; the spike READMEs record the verdicts.
-name: CherryMountain spikes
+name: Spikes
 
 on:
   push:
-    branches: ['feat-secret-topo']
+    branches: [main]
     paths:
-      - 'cherrymountain-brewery/spikes/**'
+      - 'spikes/**'
       # The wan-bgp job on VyOS commits the lists of the WAN generator.
-      - 'cherrymountain-brewery/tools/wangen/wangen/**'
-      - 'cherrymountain-brewery/wan/**'
+      - 'tools/wangen/wangen/**'
+      - 'wan/**'
       - '.github/actions/cm-lab/**'
-      - '.github/workflows/cherrymountain-spikes.yml'
+      - '.github/workflows/spikes.yml'
   workflow_dispatch:
     inputs:
       spikes:
@@ -44,7 +44,7 @@ permissions: {}
 
 # A newer push supersedes the run in progress for the same ref.
 concurrency:
-  group: cherrymountain-spikes-${{ github.ref }}
+  group: spikes-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -130,7 +130,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            cherrymountain-brewery/spikes
+            spikes
           persist-credentials: false
 
       - name: Restore the image
@@ -138,7 +138,7 @@ jobs:
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: out/cm-spike.qc2
-          key: cm-image-cm-spike-${{ hashFiles('cherrymountain-brewery/spikes/ci/build_image.sh', 'cherrymountain-brewery/spikes/ci/images/**') }}-${{ needs.plan.outputs.phenix-ref }}
+          key: cm-image-cm-spike-${{ hashFiles('spikes/ci/build_image.sh', 'spikes/ci/images/**') }}-${{ needs.plan.outputs.phenix-ref }}
 
       - name: Set up phenix, minimega and the image builder
         if: steps.cache.outputs.cache-hit != 'true'
@@ -154,7 +154,7 @@ jobs:
           # build_image.sh needs the images checkout only for VyOS.
           IMAGES_DIR: ${{ github.workspace }}
           OUT_DIR: ${{ github.workspace }}/out
-        run: bash cherrymountain-brewery/spikes/ci/build_image.sh cm-spike
+        run: bash spikes/ci/build_image.sh cm-spike
 
       - name: Save the image
         if: steps.cache.outputs.cache-hit != 'true'
@@ -189,7 +189,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            cherrymountain-brewery/spikes
+            spikes
           persist-credentials: false
 
       - name: Name the month
@@ -202,7 +202,7 @@ jobs:
         with:
           path: out/vyos.qc2
           # The month rebuilds the rolling release monthly.
-          key: cm-image-vyos-${{ hashFiles('cherrymountain-brewery/spikes/ci/build_image.sh') }}-${{ needs.plan.outputs.images-ref }}-${{ needs.plan.outputs.phenix-ref }}-${{ steps.month.outputs.month }}
+          key: cm-image-vyos-${{ hashFiles('spikes/ci/build_image.sh') }}-${{ needs.plan.outputs.images-ref }}-${{ needs.plan.outputs.phenix-ref }}-${{ steps.month.outputs.month }}
 
       - name: Check out the image recipes
         if: steps.cache.outputs.cache-hit != 'true'
@@ -232,7 +232,7 @@ jobs:
         env:
           IMAGES_DIR: ${{ github.workspace }}/images
           OUT_DIR: ${{ github.workspace }}/out
-        run: bash cherrymountain-brewery/spikes/ci/build_image.sh vyos
+        run: bash spikes/ci/build_image.sh vyos
 
       - name: Save the image
         if: steps.cache.outputs.cache-hit != 'true'
@@ -282,7 +282,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            cherrymountain-brewery/spikes
+            spikes
           persist-credentials: false
 
       - name: Set up the lab
@@ -293,7 +293,7 @@ jobs:
           images: cm-spike|vyos
 
       - name: Run the spike
-        run: sudo -E /opt/cm-spike-venv/bin/python cherrymountain-brewery/spikes/vyos-ipsec/ci.py
+        run: sudo -E /opt/cm-spike-venv/bin/python spikes/vyos-ipsec/ci.py
 
       - name: Prepare the evidence
         if: always()
@@ -329,7 +329,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            cherrymountain-brewery/spikes
+            spikes
           persist-credentials: false
 
       - name: Set up the lab
@@ -340,7 +340,7 @@ jobs:
           images: cm-spike|vyos
 
       - name: Run the spike
-        run: sudo -E /opt/cm-spike-venv/bin/python cherrymountain-brewery/spikes/bbmd/ci.py
+        run: sudo -E /opt/cm-spike-venv/bin/python spikes/bbmd/ci.py
 
       - name: Prepare the evidence
         if: always()
@@ -392,24 +392,25 @@ jobs:
           # tools/plantgen/plantgen has wgkeys.py, which derives the tunnels' keys.
           sparse-checkout: |
             .github/actions
-            cherrymountain-brewery/spikes
-            cherrymountain-brewery/tools/plantgen/plantgen
-            cherrymountain-brewery/tools/wangen/wangen
-            cherrymountain-brewery/wan
+            spikes
+            tools/plantgen/plantgen
+            tools/wangen/wangen
+            wan
           persist-credentials: false
 
-      # phenix's vrouter app with a `config` list of VyOS commands, which carries the BGP,
-      # BFD and tunnel configuration the app cannot render. The patch is for the fork's branch.
-      - name: Set up the lab with the vrouter config list
+      # phenix's vrouter app with a `bgp` block, which carries BGP, BFD and the routing policy,
+      # and a `config` list of VyOS commands, which carries the tunnels and what else the app
+      # cannot render. The patch is for the fork's branch.
+      - name: Set up the lab with the vrouter bgp block and config list
         uses: ./.github/actions/cm-lab
         with:
           phenix-repository: ${{ env.PHENIX_REPOSITORY }}
           phenix-ref: ${{ needs.plan.outputs.phenix-ref }}
-          phenix-patch: cherrymountain-brewery/spikes/wan-bgp/patches/vrouter-config-passthrough.ci-e2e-minimega.patch
+          phenix-patch: spikes/wan-bgp/patches/vrouter-bgp.ci-e2e-minimega.patch
           images: cm-spike|vyos
 
       - name: Run the spike
-        run: sudo -E /opt/cm-spike-venv/bin/python cherrymountain-brewery/spikes/wan-bgp/vyos_ci.py
+        run: sudo -E /opt/cm-spike-venv/bin/python spikes/wan-bgp/vyos_ci.py
 
       - name: Prepare the evidence
         if: always()
@@ -444,7 +445,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            cherrymountain-brewery/spikes
+            spikes
           persist-credentials: false
 
       - name: Set up the lab
@@ -455,7 +456,7 @@ jobs:
           images: cm-spike
 
       - name: Run the spike
-        run: sudo -E /opt/cm-spike-venv/bin/python cherrymountain-brewery/spikes/autotunnel/ci.py
+        run: sudo -E /opt/cm-spike-venv/bin/python spikes/autotunnel/ci.py
 
       - name: Prepare the evidence
         if: always()
@@ -490,7 +491,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            cherrymountain-brewery/spikes
+            spikes
           persist-credentials: false
 
       - name: Set up the lab
@@ -506,10 +507,10 @@ jobs:
           sudo apt-get install -y -q --no-install-recommends build-essential git libczmq-dev libzmq3-dev libxml2-dev pkg-config
           sudo mkdir -p /phenix/injects
           sudo chown "$(id -u):$(id -g)" /phenix/injects
-          OUT=/phenix/injects/otsim-rtu.tgz bash cherrymountain-brewery/spikes/serial/build_otsim.sh
+          OUT=/phenix/injects/otsim-rtu.tgz bash spikes/serial/build_otsim.sh
 
       - name: Run the spike
-        run: sudo -E /opt/cm-spike-venv/bin/python cherrymountain-brewery/spikes/serial/ci.py
+        run: sudo -E /opt/cm-spike-venv/bin/python spikes/serial/ci.py
 
       - name: Prepare the evidence
         if: always()
@@ -544,7 +545,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            cherrymountain-brewery/spikes
+            spikes
           persist-credentials: false
 
       # The PR's serial app (src/go/app/serial.go and util/mm at activeshadow/sceptre-phenix f832ad5)
@@ -554,7 +555,7 @@ jobs:
         with:
           phenix-repository: ${{ env.PHENIX_REPOSITORY }}
           phenix-ref: ${{ needs.plan.outputs.phenix-ref }}
-          phenix-patch: cherrymountain-brewery/spikes/serial/pr130-serial.patch
+          phenix-patch: spikes/serial/pr130-serial.patch
           images: cm-spike
 
       - name: Build the ot-sim modules for the guests
@@ -563,10 +564,10 @@ jobs:
           sudo apt-get install -y -q --no-install-recommends build-essential git socat libczmq-dev libzmq3-dev libxml2-dev pkg-config
           sudo mkdir -p /phenix/injects
           sudo chown "$(id -u):$(id -g)" /phenix/injects
-          OUT=/phenix/injects/otsim-rtu.tgz bash cherrymountain-brewery/spikes/serial/build_otsim.sh
+          OUT=/phenix/injects/otsim-rtu.tgz bash spikes/serial/build_otsim.sh
 
       - name: Run the spike
-        run: sudo -E /opt/cm-spike-venv/bin/python cherrymountain-brewery/spikes/serial/ci_pr130.py
+        run: sudo -E /opt/cm-spike-venv/bin/python spikes/serial/ci_pr130.py
 
       - name: Prepare the evidence
         if: always()
@@ -602,7 +603,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            cherrymountain-brewery/spikes
+            spikes
           persist-credentials: false
 
       - name: Set up the lab and the phenix apps
@@ -615,7 +616,7 @@ jobs:
           apps-ref: ${{ needs.plan.outputs.apps-ref }}
 
       - name: Run the spike
-        run: sudo -E /opt/cm-spike-venv/bin/python cherrymountain-brewery/spikes/malcolm/ci_mirror.py
+        run: sudo -E /opt/cm-spike-venv/bin/python spikes/malcolm/ci_mirror.py
 
       - name: Prepare the evidence
         if: always()
@@ -651,7 +652,7 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: cherrymountain-brewery/spikes
+          sparse-checkout: spikes
           persist-credentials: false
 
       - name: Install the tools
@@ -665,7 +666,7 @@ jobs:
           "$RUNNER_TEMP/bbmd-venv/bin/pip" install --quiet bacpypes3==0.0.110 pydantic==2.11.7
 
       - name: Run the spike
-        run: sudo -E "$RUNNER_TEMP/bbmd-venv/bin/python" cherrymountain-brewery/spikes/bbmd/netns_lab.py
+        run: sudo -E "$RUNNER_TEMP/bbmd-venv/bin/python" spikes/bbmd/netns_lab.py
 
       - name: Prepare the evidence
         if: always()
@@ -697,11 +698,11 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: cherrymountain-brewery/spikes
+          sparse-checkout: spikes
           persist-credentials: false
 
       - name: Run the spike
-        run: bash cherrymountain-brewery/spikes/malcolm/docker_fit.sh
+        run: bash spikes/malcolm/docker_fit.sh
 
       - name: Prepare the evidence
         if: always()

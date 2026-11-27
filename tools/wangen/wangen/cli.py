@@ -13,7 +13,7 @@ from typing import Final
 
 from wangen import model, phenix
 
-#: cherrymountain-brewery/
+#: The repository root.
 ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 OUTPUTS: Final[dict[str, Path]] = {
     "topology": ROOT / "phenix-configs" / "topology-wan.yml",

@@ -11,6 +11,7 @@ last rule leaves alone, each with its reason.
 from __future__ import annotations
 
 import io
+import json
 import re
 import zipfile
 from pathlib import Path
@@ -55,7 +56,30 @@ class Kept(NamedTuple):
 
 
 WAZUH: str = "10.40.10.11"
+MALCOLM: str = "10.40.10.10"
 KEPT: tuple[Kept, ...] = (
+    Kept(
+        "scenario",
+        frozenset({MALCOLM}),
+        "the far end of the firewall rules between the site's sensor and Malcolm "
+        "(netcheck.fleet): the fleet has one Malcolm, at the head office",
+    ),
+    Kept(
+        "sensor/cm-sensor.env",
+        frozenset({MALCOLM}),
+        "where the sensor sends: the fleet has one Malcolm, at the head office",
+    ),
+    Kept(
+        "sensor/cm-sensor-provision",
+        frozenset({"malcolm", "172.16.0.0"}),
+        "the user that owns Malcolm's checkout in the image, not a host, and Zeek's local "
+        "networks, which are the private ranges as a whole (172.16.0.0/12)",
+    ),
+    Kept(
+        "sensor/cm-sensor.service",
+        frozenset({"malcolm"}),
+        "the user that the unit runs as, which owns Malcolm's checkout in the image",
+    ),
     Kept(
         "vrouter/cm-vyos-config.sh",
         frozenset({"fw-edge", "fw-ot"}),
@@ -276,18 +300,23 @@ def test_every_injected_file_exists(code: str) -> None:
 
 
 def test_the_sets_of_the_four_sites_differ_in_size() -> None:
-    """Injected files: the pub has five, and the head office has them all."""
+    """Injected files: the pub has the fewest, and the head office has them all.
+    A sensor has 17, and `ep` and `cs` had two of them before (the image loader)."""
     assert {code: len(injected(code)) for code in CODES} == {
-        "fr": 76,
-        "ep": 29,
-        "cs": 20,
-        "fc": 5,
+        "fr": 78,
+        # Four of them are the staff accounts of its own jump host: the two
+        # scripts, their library, and the roster.
+        "ep": 48,
+        "cs": 37,
+        "fc": 22,
     }
     own: dict[str, int] = {
         code: sum(1 for path in injected(code) if path.startswith(f"fleet/{code}/"))
         for code in CODES
     }
-    assert own == {"fr": 8, "ep": 8, "cs": 6, "fc": 1}
+    # `fr` has the SOC: two of its copies are the detection content. `ep` has
+    # the roster of its staff accounts. Each other site has its sensor's settings.
+    assert own == {"fr": 10, "ep": 10, "cs": 7, "fc": 2}
 
 
 @pytest.mark.parametrize("code", CODES)
@@ -299,7 +328,6 @@ def test_the_scenario_names_only_hosts_of_the_topology(code: str) -> None:
         "startup",
         "ot-sim",
         "cherrymountain",
-        "helics",
         "ntp",
         "vrouter",
         "soh",
@@ -311,7 +339,10 @@ def test_the_scenario_names_only_hosts_of_the_topology(code: str) -> None:
         named |= set(soh.get(key, {}))
     for probe in soh["testCustomReachability"]:
         named |= {probe["src"], probe["dst"].split("|")[0]}
-    named.add(apps["helics"]["metadata"]["broker"]["root"].split("|")[0])
+    # A site has no helics app. The cherrymountain app, which its `site` key
+    # tells so, starts the HELICS broker of the site on the site's sim-ctl.
+    assert apps["cherrymountain"]["metadata"]["site"] == code
+    assert f"{code}-sim-ctl" in nodes
     assert len(named) > 10
     assert named - nodes == set(OUTSIDE_SOURCES)
     # The ntp app runs in app mode, so it lists every node.
@@ -423,6 +454,24 @@ def test_no_vendor_file_account_or_secret_reaches_a_site_without_the_vendors_acc
             assert not [value for value in values if value in text], name
 
 
+def test_the_staff_accounts_are_at_the_site_with_a_jump_host_of_its_own() -> None:
+    """PLANS.md 4.6, decision K5a: `ep` has a jump host that the vendor does not
+    reach, and the company's staff have named accounts there."""
+    sources: dict[str, list[str]] = injected("ep")
+    assert sources["fleet/ep/guacamole/staff.env"] == ["ep-ews", "ep-dmz-jump"]
+    assert sources["guacamole/cm_staff_sql.py"] == ["ep-dmz-jump"]
+    assert sources["guacamole/cm_guac_accounts.py"] == ["ep-dmz-jump"]
+    assert sources["ews/71-ews-staff.sh"] == ["ep-ews"]
+    roster: str = (ROOT / "phenix-injects/fleet/ep/guacamole/staff.env").read_text(encoding="utf-8")
+    assert "STAFF1_USER=corp-controls\n" in roster and "STAFF2_USER=ep-maint\n" in roster
+    for code in CODES:
+        if code != "ep":
+            assert not [path for path in injected(code) if "staff" in path], code
+    # The head office's jump host is the vendor's: it gets the library of the
+    # roster scripts, and no roster of the staff.
+    assert injected("fr")["guacamole/cm_guac_accounts.py"] == ["fr-dmz-jump"]
+
+
 def test_the_head_office_keeps_the_vendors_access() -> None:
     sources: dict[str, list[str]] = injected("fr")
     assert sources["guacamole/ridgeline.env"] == ["fr-ews", "fr-dmz-jump"]
@@ -465,3 +514,49 @@ def test_no_file_keeps_the_old_address_of_the_internets_server(code: str) -> Non
             if OLD_INTERNET_SERVER.fullmatch(leg["address"])
         ]
         assert legs == ["203.0.113.10"]
+
+
+# --- who may write BACnet ----------------------------------------------------------
+
+
+@pytest.mark.parametrize("code", CODES)
+def test_the_bacnet_writers_of_a_site_are_hosts_of_the_site(code: str) -> None:
+    """plantgen lists who may write BACnet at a site (decision K4a). Each
+    writer is a node of the site, with the address that the topology gives it."""
+    listed: dict[str, Any] = json.loads(
+        (ROOT / "plant" / "generated" / "fleet" / code / "bacnet-writers.json").read_text()
+    )
+    assert listed["site"] == code and listed["writers"]
+    first: dict[str, str] = {
+        node["general"]["hostname"]: node["network"]["interfaces"][0]["address"]
+        for node in topology(code)["spec"]["nodes"]
+    }
+    for writer in listed["writers"]:
+        assert first[writer["host"]] == writer["address"]
+    hosts: list[str] = [writer["host"] for writer in listed["writers"]]
+    if f"{code}-bas-fuxa" in first:
+        assert hosts == [f"{code}-bas-fuxa", f"{code}-ews"]
+    else:
+        # The pub has no building front end: its one SCADA host writes.
+        assert hosts == [f"{code}-scada-fuxa"]
+
+
+def test_the_socs_detection_content_lists_the_writers_of_its_site() -> None:
+    """`fr` has the fleet's SOC. Its copies of the Suricata rules and the Zeek
+    script hold the writers of `fr` from the list, not by hand."""
+    listed: dict[str, Any] = json.loads(
+        (ROOT / "plant" / "generated" / "fleet" / "fr" / "bacnet-writers.json").read_text()
+    )
+    addresses: list[str] = [writer["address"] for writer in listed["writers"]]
+    copies: Path = ROOT / "phenix-injects" / "fleet" / "fr" / "malcolm"
+    rules: str = (copies / "cherrymountain.rules").read_text(encoding="utf-8")
+    assert rules.count(f"alert udp ![{','.join(addresses)}] any -> any 47808 (msg:") == 2
+    zeek: str = (copies / "zeek" / "cherrymountain.zeek").read_text(encoding="utf-8")
+    assert f"const bacnet_writers: set[addr] = {{ {', '.join(addresses)} }} &redef;" in zeek
+    assert "fleet/fr/malcolm/cherrymountain.rules" in injected("fr")
+    assert "fleet/fr/malcolm/zeek/cherrymountain.zeek" in injected("fr")
+    # A sensor of another site injects the capture scripts of `malcolm` and not
+    # the detection content, which names the hosts of `fr` by address.
+    for code in OTHER_SITES:
+        assert not [path for path in injected(code) if "cherrymountain." in path]
+        assert "malcolm/cm-malcolm-capture" in injected(code)

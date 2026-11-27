@@ -82,8 +82,8 @@ a scenario, and writes a JSON file of engineering values by FUXA tag name:
     python fuxa_snapshot.py SCENARIO OUT.json [--root DIR]
 
 Scenarios are the viz scenarios (none, co2-leak, co2-attack, spunding-attack,
-outage) and the ones below. ``--root`` is the ``cherrymountain-brewery``
-directory (CM_ROOT, else this file's place in the tree). Needs the repo's sim and
+outage) and the ones below. ``--root`` is the repository root
+(CM_ROOT, else this file's place in the tree). Needs the repo's sim and
 viz packages importable.
 """
 

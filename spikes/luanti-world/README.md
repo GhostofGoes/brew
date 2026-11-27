@@ -136,7 +136,7 @@ Other observations:
 ## Run it
 
 ```shell
-cd cherrymountain-brewery/spikes/luanti-world
+cd spikes/luanti-world
 sudo apt-get install minetest minetest-server xvfb imagemagick   # 5.6.1 on noble
 python3 -m venv .venv && .venv/bin/pip install -e '../../viz[local]' -e ../../sim pyyaml
 

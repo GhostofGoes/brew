@@ -128,12 +128,12 @@ caption in the README says which.
 
 ```shell
 export FUXA_SERVER=/path/to/FUXA/server FUXA_PKG=/path/to/pkg
-cherrymountain-brewery/docs/examples/capture/capture_all.sh            # all four groups
-cherrymountain-brewery/docs/examples/capture/capture_all.sh viz        # or one: viz, fuxa, hmi, brand
+docs/examples/capture/capture_all.sh            # all four groups
+docs/examples/capture/capture_all.sh viz        # or one: viz, fuxa, hmi, brand
 ```
 
 Environment: `OUT` (where the PNGs go; default `docs/examples/`), `WORK` (scratch;
-default `/tmp/cm-examples`), `CM_ROOT` (the `cherrymountain-brewery` directory;
+default `/tmp/cm-examples`), `CM_ROOT` (the repository root;
 default found from this file), `PYTHON`, `XDISPLAY` (default 98), and
 `REMAKE_SNAPSHOTS=1` to run the simulation again (snapshots are kept in
 `$WORK/snapshots/`). The whole set takes about 15 minutes, most of it the

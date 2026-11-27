@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import copy
 import ipaddress
+import json
 import re
 import shutil
 from pathlib import Path
@@ -13,7 +14,7 @@ from typing import Any
 import pytest
 import yaml
 
-from plantgen import checks, fleet, injects, sites, topology, workflow
+from plantgen import checks, fleet, injects, render, sites, topology, workflow
 from plantgen.allocate import allocate
 from plantgen.cli import (
     DEFAULT_PLANT,
@@ -23,7 +24,7 @@ from plantgen.cli import (
     generate_site_set,
     main,
 )
-from plantgen.model import PlantError, PlantFile, load_file
+from plantgen.model import PlantError, PlantFile, expand, load_file
 
 CODES: list[str] = ["fr", "ep", "cs", "fc"]
 CONFIGS: Path = TOPOLOGY_DIR / "phenix-configs"
@@ -50,6 +51,9 @@ FRONT_RANGE = re.compile(r"\b(?:10\.(?:10|20|30|40)|172\.16)\.\d+\.\d+")
 KEPT: dict[str, dict[str, str]] = {
     "vrouter/cm-vyos-config.sh": {
         "10.40.10.11": "the fleet has one Wazuh, at the head office",
+    },
+    injects.SENSOR_ENV: {
+        "10.40.10.10": "the fleet has one Malcolm, at the head office",
     },
 }
 
@@ -281,10 +285,19 @@ def test_the_committed_copies_are_current(code: str, sets: dict[str, SiteSet]) -
 def test_a_site_copies_what_its_nodes_inject(sets: dict[str, SiteSet]) -> None:
     """The brewpub has one router and no ot-svc, BBMD, or jump host."""
     assert {code: sorted(_copies(made)) for code, made in sets.items()} == {
-        "fr": sorted(injects.RENDERERS),
-        "ep": sorted(injects.RENDERERS),
-        "cs": sorted(p for p in injects.RENDERERS if not p.startswith("guacamole/")),
-        "fc": ["vrouter/cm-vyos-config.sh"],
+        # The staff accounts are at `ep`: its jump host is the company's own.
+        # The head office has Malcolm itself, and no sensor.
+        "fr": sorted(
+            p
+            for p in injects.RENDERERS
+            if p not in (injects.STAFF_ENV, injects.SENSOR_ENV)
+        ),
+        # The detection content of the SOC is the head office's.
+        "ep": sorted(p for p in injects.RENDERERS if not p.startswith("malcolm/")),
+        "cs": sorted(
+            p for p in injects.RENDERERS if not p.startswith(("guacamole/", "malcolm/"))
+        ),
+        "fc": [injects.SENSOR_ENV, "vrouter/cm-vyos-config.sh"],
     }
 
 
@@ -438,6 +451,7 @@ def test_a_hand_written_file_without_its_line_stops_the_generator(
 ) -> None:
     changed = tmp_path / "phenix-injects"
     shutil.copytree(INJECTS / "vrouter", changed / "vrouter")
+    shutil.copytree(INJECTS / "sensor", changed / "sensor")
     script = changed / "vrouter" / "cm-vyos-config.sh"
     text = script.read_text(encoding="utf-8")
     script.write_text(text.replace("OT_SVC=", "TIME_SERVER="), encoding="utf-8")
@@ -517,23 +531,222 @@ def test_the_vendors_accounts_stay_at_the_site_with_the_remote_module(
             assert found["ews"] == today["ews"]
             continue
         for name, paths in found.items():
+            if name == fleet.SENSOR_NAME:
+                # A node of plantgen's own: no node of today has its files.
+                continue
             assert not paths & vendor, (code, name)
             assert not [p for p in paths if p.startswith("wireguard/")], (code, name)
-            # Nothing else is lost: only the vendor's files are gone.
-            assert paths == {p for p in today.get(name, set()) if p not in vendor}
+            # Nothing else is lost: only the vendor's files are gone. The files
+            # of the site's staff accounts are new.
+            staff = {
+                injection["src"].removeprefix(injects.PREFIX).split("/", 2)[-1]
+                if injection["dst"] == injects.STAFF_TARGET
+                else injection["src"].removeprefix(injects.PREFIX)
+                for injection in injects.staff_injections(specs[code], name)
+            }
+            assert paths == staff | {
+                p for p in today.get(name, set()) if p not in vendor
+            }
     assert "guacamole/cm-guacamole-start" in _sources(sets["ep"])["dmz-jump"]
     assert "ews/cm_plc_tool.py" in _sources(sets["cs"])["ews"]
 
 
-def test_the_header_says_that_the_jump_hosts_accounts_are_not_designed(
-    sets: dict[str, SiteSet],
+# --- the sensor ---
+
+
+@pytest.mark.parametrize("code", ["ep", "cs", "fc"])
+def test_the_sensor_injects_its_first_boot_files(
+    code: str, sets: dict[str, SiteSet]
 ) -> None:
-    said = "company's own accounts are still to be designed."
+    nodes = yaml.safe_load(sets[code].topology)["spec"]["nodes"]
+    sensor = next(n for n in nodes if n["general"]["hostname"] == f"{code}-sensor")
+    own = f"{injects.PREFIX}{injects.SITE_DIRECTORY.format(code=code)}/"
+    assert [(i["src"], i["dst"], i["permissions"]) for i in sensor["injections"]] == [
+        (
+            f"{own if path == injects.SENSOR_ENV else injects.PREFIX}{path}",
+            target,
+            mode,
+        )
+        for path, target, mode, _ in injects.SENSOR_FILES
+    ]
+    assert all(i["description"] for i in sensor["injections"])
+    # phenix puts the files on the partition that the image's root is on.
+    assert sensor["hardware"]["drives"] == [
+        {"image": "cm-sensor.qc2", "inject_partition": 1}
+    ]
+
+
+def test_the_files_of_the_sensor_exist_and_a_program_can_run() -> None:
+    targets = [target for _, target, _, _ in injects.SENSOR_FILES]
+    assert len(set(targets)) == len(targets)
+    for path, target, mode, _ in injects.SENSOR_FILES:
+        file = INJECTS / path
+        assert file.is_file(), path
+        program = target.startswith(("/usr/local/sbin/", "/etc/phenix/startup/"))
+        assert mode == ("0755" if program else "0644"), path
+        assert bool(file.stat().st_mode & 0o111) == program, path
+    # Every file of phenix-injects/sensor has a node that injects it.
+    assert {p.name for p in (INJECTS / "sensor").iterdir()} == {
+        path.removeprefix("sensor/")
+        for path, _, _, _ in injects.SENSOR_FILES
+        if path.startswith("sensor/")
+    }
+
+
+def test_no_sensor_gets_the_detections_that_name_front_range_hosts() -> None:
+    """A site's copy of the rules moves only the BACnet writers, so a sensor
+    with the rules would alert on each permitted Modbus write of its site."""
+    paths = {path for path, _, _, _ in injects.SENSOR_FILES}
+    assert not paths & {
+        "malcolm/cherrymountain.rules",
+        "malcolm/zeek/cherrymountain.zeek",
+        "malcolm/zeek/__load__.zeek",
+    }
+    for path in paths - {injects.SENSOR_ENV}:
+        lines = (INJECTS / path).read_text(encoding="utf-8").splitlines()
+        code_lines = [ln for ln in lines if not ln.lstrip().startswith("#")]
+        # Zeek's local networks are the private ranges as a whole.
+        read = "\n".join(code_lines).replace("172.16.0.0/12", "")
+        assert not FRONT_RANGE.findall(read), path
+
+
+@pytest.mark.parametrize("code", ["ep", "cs", "fc"])
+def test_the_sensors_settings_name_it_and_the_one_malcolm(
+    code: str, sets: dict[str, SiteSet]
+) -> None:
+    nodes = yaml.safe_load(sets[code].topology)["spec"]["nodes"]
+    sensor = next(n for n in nodes if n["general"]["hostname"] == f"{code}-sensor")
+    head_office = yaml.safe_load(sets["fr"].topology)["spec"]["nodes"]
+    malcolm = next(n for n in head_office if n["general"]["hostname"] == "fr-malcolm")
+    values = dict(
+        line.split("=", 1)
+        for line in _copies(sets[code])[injects.SENSOR_ENV].splitlines()
+        if line and not line.startswith("#")
+    )
+    assert values == {
+        "CM_SENSOR_NAME": f"{code}-sensor",
+        "CM_SENSOR_ADDRESS": sensor["network"]["interfaces"][0]["address"],
+        "CM_MALCOLM_HOST": malcolm["network"]["interfaces"][0]["address"],
+    }
+
+
+def test_the_hand_written_settings_of_the_sensor_name_no_sensor() -> None:
+    text = (INJECTS / injects.SENSOR_ENV).read_text(encoding="utf-8")
+    assert "\nCM_SENSOR_NAME=\n" in text
+    assert "\nCM_SENSOR_ADDRESS=\n" in text
+
+
+def test_the_header_names_the_staff_accounts_of_a_sites_own_jump_host(
+    sets: dict[str, SiteSet], specs: dict[str, sites.SiteSpec]
+) -> None:
+    said = "#   corp-controls, ep-maint\n"
     assert {code: said in made.topology for code, made in sets.items()} == {
         "fr": False,
         "ep": True,
         "cs": False,
         "fc": False,
+    }
+    # A jump host of the company's own with no staff account: the header says so.
+    bare = specs["ep"].model_copy(update={"staff": []})
+    config = yaml.safe_load(sets["ep"].topology)
+    text = topology.dump(bare, config)
+    assert "The\n#   site has no staff accounts (plant/sites.yaml, `staff`)." in text
+    assert "corp-controls" not in text.split("apiVersion:")[0]
+
+
+# --- the accounts of the company's own staff (decision K5a) ---
+
+#: The two hosts that get files for the staff accounts, with the script of each.
+STAFF_SCRIPTS: dict[str, tuple[str, str, str]] = {
+    "dmz-jump": (
+        "guacamole/cm_staff_sql.py",
+        "/usr/local/lib/cm-guacamole/cm_staff_sql.py",
+        "0644",
+    ),
+    "ews": ("ews/71-ews-staff.sh", "/etc/phenix/startup/71-ews-staff.sh", "0755"),
+}
+
+
+def test_only_the_jump_host_and_the_workstation_of_a_site_with_staff_get_its_files(
+    sets: dict[str, SiteSet], specs: dict[str, sites.SiteSpec]
+) -> None:
+    assert {code: [p.account for p in spec.staff] for code, spec in specs.items()} == {
+        "fr": [],
+        "ep": ["corp-controls", "ep-maint"],
+        "cs": [],
+        "fc": [],
+    }
+    roster = f"{injects.PREFIX}fleet/ep/{injects.STAFF_ENV}"
+    for code, made in sets.items():
+        for node in yaml.safe_load(made.topology)["spec"]["nodes"]:
+            name = node["general"]["hostname"].removeprefix(f"{code}-")
+            found = {
+                injection["src"]: (injection["dst"], injection["permissions"])
+                for injection in node.get("injections", [])
+                if "staff" in injection["src"]
+            }
+            if code != "ep" or name not in STAFF_SCRIPTS:
+                assert not found, (code, name)
+                continue
+            script, target, mode = STAFF_SCRIPTS[name]
+            assert found == {
+                f"{injects.PREFIX}{script}": (target, mode),
+                # The roster holds passwords: only root reads it.
+                roster: (injects.STAFF_TARGET, "0600"),
+            }
+            assert (INJECTS / script).is_file()
+
+
+def test_the_roster_of_a_site_lists_its_staff_with_placeholders_that_do_not_change(
+    sets: dict[str, SiteSet], specs: dict[str, sites.SiteSpec]
+) -> None:
+    text = _copies(sets["ep"])[injects.STAFF_ENV]
+    values = dict(
+        line.split("=", 1) for line in text.splitlines() if not line.startswith("#")
+    )
+    assert values["STAFF_COUNT"] == "2"
+    assert [values[f"STAFF{n}_USER"] for n in (1, 2)] == ["corp-controls", "ep-maint"]
+    assert len(values) == 1 + 4 * 2
+    secret = [value for key, value in values.items() if key.endswith(("WORD", "SECRET"))]
+    # What the two scripts accept (phenix-injects/guacamole/cm_guac_accounts.py).
+    for n in (1, 2):
+        assert re.fullmatch(r"[A-Za-z0-9]{20}", values[f"STAFF{n}_GUAC_PASSWORD"])
+        assert re.fullmatch(r"[A-Za-z0-9]{20}", values[f"STAFF{n}_EWS_PASSWORD"])
+        assert re.fullmatch(r"[A-Z2-7]{32}", values[f"STAFF{n}_TOTP_SECRET"])
+    assert len(set(secret)) == len(secret) == 6
+    # Each person's title is a comment above the account.
+    for person in specs["ep"].staff:
+        assert f"# {person.title}\nSTAFF" in text
+    # Another site with the same account gets other placeholders.
+    other = injects.Context(
+        site=specs["ep"].model_copy(update={"code": "cs"}),
+        plant=None,  # type: ignore[arg-type]
+        nodes=[],
+        path=injects.STAFF_ENV,
+        targets=[],
+        text=(INJECTS / injects.STAFF_ENV).read_text(encoding="utf-8"),
+    )
+    theirs = injects.RENDERERS[injects.STAFF_ENV](other)
+    assert "STAFF1_USER=corp-controls\n" in theirs
+    assert not [value for value in secret if value in theirs]
+
+
+def test_the_app_block_of_a_site_with_staff_names_the_accounts(
+    sets: dict[str, SiteSet],
+) -> None:
+    """The cherrymountain app makes each account's passwords and TOTP key for
+    an experiment, and it takes the names from its metadata."""
+    found = {
+        code: yaml.safe_load(made.files["phenix/cherrymountain.yaml"])["metadata"].get(
+            "staffAccounts"
+        )
+        for code, made in sets.items()
+    }
+    assert found == {
+        "fr": None,
+        "ep": ["corp-controls", "ep-maint"],
+        "cs": None,
+        "fc": None,
     }
 
 
@@ -728,3 +941,109 @@ def test_the_office_network_needs_a_firewall(
         PlantError, match="office network OFFICE of corp-ws has no firewall"
     ):
         fleet.site_plant(unrouted, plant_file, sources.wan)
+
+
+# --- who may write BACnet, and the app's site key ---
+
+#: The writers that the single site's detection content has by hand
+#: (phenix-injects/malcolm): bas-fuxa and the engineering workstation.
+SINGLE_SITE_WRITERS: list[str] = ["10.30.10.10", "10.20.30.12"]
+
+
+def _writers(made: SiteSet) -> list[tuple[str, str]]:
+    doc = json.loads(made.files[render.BACNET_WRITERS_FILE])
+    return [(writer["host"], writer["address"]) for writer in doc["writers"]]
+
+
+def test_the_bacnet_writers_follow_the_hosts_of_a_site(
+    sets: dict[str, SiteSet],
+) -> None:
+    """Decision K4a. Where a site has a building front end, that host and the
+    workstation write BACnet. At the pub, the one SCADA host operates the
+    building too, so it is the writer, and no other host is."""
+    assert {code: _writers(made) for code, made in sets.items()} == {
+        "fr": [("fr-bas-fuxa", "10.30.10.10"), ("fr-ews", "10.20.30.12")],
+        "ep": [("ep-bas-fuxa", "10.32.10.10"), ("ep-ews", "10.22.30.12")],
+        "cs": [("cs-bas-fuxa", "192.168.30.10"), ("cs-ews", "192.168.20.42")],
+        "fc": [("fc-scada-fuxa", "10.21.10.40")],
+    }
+    # A SCADA host of a site with a building front end only reads.
+    for code in ("fr", "ep", "cs"):
+        assert f"{code}-scada-fuxa" not in dict(_writers(sets[code]))
+
+
+def test_the_writers_of_the_single_site_are_those_of_its_detection_content(
+    plant_file: PlantFile,
+) -> None:
+    """The same rule, on the full variant, gives the two addresses that a
+    person wrote into the Suricata rules and the Zeek script. The variants
+    get no file: their detection content is the hand-written one."""
+    full = expand(plant_file, "full")
+    found = [writer["address"] for writer in render.bacnet_writers(full)]
+    assert found == SINGLE_SITE_WRITERS
+    rules = (INJECTS / "malcolm" / "cherrymountain.rules").read_text("utf-8")
+    assert rules.count(f"alert udp ![{','.join(found)}] any -> any 47808") == 2
+    zeek = (INJECTS / "malcolm" / "zeek" / "cherrymountain.zeek").read_text("utf-8")
+    assert f"const bacnet_writers: set[addr] = {{ {', '.join(found)} }}" in zeek
+    for name in ("ci", "full", "lite"):
+        generated = DEFAULT_PLANT.parent / "generated" / name
+        assert not (generated / render.BACNET_WRITERS_FILE).exists()
+
+
+def test_the_detection_copies_of_the_soc_hold_the_sites_writers(
+    sets: dict[str, SiteSet],
+    plant_file: PlantFile,
+    specs: dict[str, sites.SiteSpec],
+    sources: SiteSources,
+) -> None:
+    """`fr` has the SOC. Its copies of the rules and the script get the
+    writers from the list, which there are the hand-written two."""
+    copies = _copies(sets["fr"])
+    for path in ("malcolm/cherrymountain.rules", "malcolm/zeek/cherrymountain.zeek"):
+        hand_written = (INJECTS / path).read_text(encoding="utf-8").splitlines()
+        assert [ln for ln in copies[path].splitlines() if "Generated by" not in ln] == (
+            hand_written
+        ), path
+    # The same renderers on the pub's hosts: the alert follows the site.
+    pub = fleet.expand_site(specs["fc"], plant_file, sources.wan)
+
+    def rendered(path: str) -> str:
+        context = injects.Context(
+            site=specs["fc"],
+            plant=pub,
+            nodes=[],
+            path=path,
+            targets=["fc-malcolm"],
+            text=(INJECTS / path).read_text(encoding="utf-8"),
+        )
+        return injects.RENDERERS[path](context)
+
+    zeek = rendered("malcolm/zeek/cherrymountain.zeek")
+    assert "    const bacnet_writers: set[addr] = { 10.21.10.40 } &redef;\n" in zeek
+    rules = rendered("malcolm/cherrymountain.rules")
+    assert rules.count("alert udp ![10.21.10.40] any -> any 47808 (msg:") == 2
+    assert "10.30.10.10" not in "".join(
+        ln for ln in rules.splitlines() if "BACnet Write" in ln
+    )
+
+
+def test_the_app_block_of_a_site_names_the_site_and_a_site_has_no_helics_block(
+    sets: dict[str, SiteSet],
+) -> None:
+    """Decision K3a. The cherrymountain app reads `site`: it then takes the
+    site's files and names, and starts the site's own HELICS broker. So the
+    scenario of a site has no helics app, which has one root broker."""
+    for code, made in sets.items():
+        block = yaml.safe_load(made.files["phenix/cherrymountain.yaml"])
+        assert list(block["metadata"])[:2] == ["variant", "site"]
+        assert block["metadata"]["variant"] == block["metadata"]["site"] == code
+        assert "phenix/helics.yaml" not in made.files
+        # The broker's host and address are still in the site's helics.json.
+        broker = json.loads(made.files["helics.json"])["broker"]
+        assert broker["host"] == f"{code}-sim-ctl"
+    for name in ("ci", "full", "lite"):
+        blocks = DEFAULT_PLANT.parent / "generated" / name / "phenix"
+        block = yaml.safe_load((blocks / "cherrymountain.yaml").read_text("utf-8"))
+        assert "site" not in block["metadata"]
+    full = DEFAULT_PLANT.parent / "generated" / "full" / "phenix" / "helics.yaml"
+    assert full.is_file()

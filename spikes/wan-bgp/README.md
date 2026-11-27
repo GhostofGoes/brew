@@ -110,7 +110,7 @@ apt-get install iproute2 frr wireguard-tools wireguard-go nftables traceroute ip
 ## Steps
 
 ```shell
-cd cherrymountain-brewery/spikes/wan-bgp
+cd spikes/wan-bgp
 sudo -E python netns_lab.py                    # build, check, tear down (about 6 minutes)
 sudo -E python netns_lab.py --keep             # leave the lab up; `--down` removes it
 sudo -E python netns_lab.py --pin destination  # the first design, which drifts (finding 2)
@@ -373,7 +373,7 @@ decisions D2 and D3).
 ### What it boots
 
 `vyos_ci.py` runs as the `wan-bgp-vyos` job of the
-[CherryMountain spikes workflow](../../../.github/workflows/cherrymountain-spikes.yml),
+[Spikes workflow](../../.github/workflows/spikes.yml),
 on a GitHub runner with KVM and 4 vCPUs. On that runner, phenix and minimega
 boot four VyOS routers (2 vCPUs and 2 GB each) and two hosts.
 
@@ -417,6 +417,16 @@ is the backup tunnel, over Tumbleweed. A host sits behind each edge.
   `vyos_sketch.py` writes the commands from the model of the lab. Before the
   job builds phenix, it applies the patch for the `ci-e2e-minimega` branch of
   the fork to phenix.
+- Since run 43, the routing is a `bgp` block. The same pull request fills the
+  `bgp` block of the `vrouter` app for VyOS, and the job applies
+  [vrouter-bgp.ci-e2e-minimega.patch](patches/vrouter-bgp.ci-e2e-minimega.patch).
+  The generator (`tools/wangen/wangen/bgp.py`) moves BGP, the BFD profile, and
+  the lists and route maps of each router into the block. The tunnels, NAT,
+  and the other routes stay in the `config` list. Each job checks that phenix
+  rendered the block as the generator's routing commands before the lines of
+  the list, and that each router has each command after the commit.
+  [Run 43](https://github.com/GhostofGoes/sceptre-phenix-topologies/actions/runs/46053310679)
+  passed. The evidence directories here are still those of run 42.
 - Two jobs run, one for each kind of tunnel. `CM_TUNNEL=wireguard` selects
   WireGuard, and `CM_TUNNEL=vti` selects route-based IPsec. The IPsec job
   uses IKEv2 with a pre-shared key, a VTI (virtual tunnel interface) for each
@@ -431,7 +441,7 @@ is the backup tunnel, over Tumbleweed. A host sits behind each edge.
 ### Steps
 
 Run the workflow by hand with `spikes` set to `wan-bgp-vyos`. A push to
-`feat-secret-topo` that touches `spikes/` also runs the workflow, with the
+`main` that touches `spikes/` also runs the workflow, with the
 other spikes. Each job uploads `evidence-wan-bgp-vyos-<tunnel>`.
 
 What a run checks, in order: phenix rendered each list after its own
